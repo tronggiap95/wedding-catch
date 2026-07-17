@@ -1,0 +1,87 @@
+{
+  "stages": [
+    {
+      "id": 1,
+      "name": "Gặp gỡ",
+      "description": "Ánh mắt đầu tiên — khởi đầu câu chuyện của hai trái tim.",
+      "durationMs": 20000,
+      "spawnInterval": 900,
+      "bonusInterval": 14000,
+      "goodChance": 0.82,
+      "fallSpeed": 130,
+      "maxConcurrent": 4,
+      "background": "bg_stage_1"
+    },
+    {
+      "id": 2,
+      "name": "Tỏ tình",
+      "description": "Lời yêu đầu tiên — ngày trái tim nói thay mọi lời.",
+      "durationMs": 20000,
+      "spawnInterval": 780,
+      "bonusInterval": 13000,
+      "goodChance": 0.78,
+      "fallSpeed": 150,
+      "maxConcurrent": 5,
+      "background": "bg_stage_2"
+    },
+    {
+      "id": 3,
+      "name": "Cầu hôn",
+      "description": "Câu hỏi thay đổi cuộc đời — một chiếc nhẫn, một lời hẹn ước.",
+      "durationMs": 20000,
+      "spawnInterval": 680,
+      "bonusInterval": 12000,
+      "goodChance": 0.72,
+      "fallSpeed": 170,
+      "maxConcurrent": 6,
+      "background": "bg_stage_3"
+    },
+    {
+      "id": 4,
+      "name": "Dạm ngõ",
+      "description": "Hai họ quen biết — bước đầu về chung một nhà.",
+      "durationMs": 20000,
+      "spawnInterval": 580,
+      "bonusInterval": 11500,
+      "goodChance": 0.66,
+      "fallSpeed": 195,
+      "maxConcurrent": 7,
+      "background": "bg_stage_4"
+    },
+    {
+      "id": 5,
+      "name": "Đám hỏi",
+      "description": "Lễ hỏi sum vầy — họ hàng chúc phúc cho đôi uyên ương.",
+      "durationMs": 20000,
+      "spawnInterval": 490,
+      "bonusInterval": 11000,
+      "goodChance": 0.6,
+      "fallSpeed": 220,
+      "maxConcurrent": 8,
+      "background": "bg_stage_5"
+    },
+    {
+      "id": 6,
+      "name": "Đám cưới",
+      "description": "Ngày trọng đại — cùng nhau bước vào hạnh phúc viên mãn.",
+      "durationMs": 20000,
+      "spawnInterval": 410,
+      "bonusInterval": 10000,
+      "goodChance": 0.55,
+      "fallSpeed": 245,
+      "maxConcurrent": 9,
+      "background": "bg_stage_6"
+    }
+  ],
+  "endless": {
+    "fallSpeedMul": 1.055,
+    "spawnIntervalMul": 0.95,
+    "goodChanceStep": 0.015,
+    "maxFallSpeed": 520,
+    "minSpawnInterval": 180,
+    "minGoodChance": 0.35,
+    "maxConcurrent": 18,
+    "name": "Tăng tốc",
+    "description": "Hạnh phúc dài lâu — mỗi ngày thêm yêu thương và kỷ niệm."
+  }
+}

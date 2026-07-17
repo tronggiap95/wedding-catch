@@ -1,0 +1,10 @@
+{
+  "maxStrikes": 3,
+  "playerSpeed": 500,
+  "playerWidth": 140,
+  "playerHeight": 140,
+  "itemSize": 52,
+  "hitboxShrink": 0.12,
+  "weddingFundPerScore": 1,
+  "countdownMs": 3000
+}

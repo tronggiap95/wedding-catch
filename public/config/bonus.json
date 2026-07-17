@@ -1,0 +1,37 @@
+{
+  "bonuses": [
+    {
+      "id": "star",
+      "displayName": "Khiên cầu vồng",
+      "effect": "invincible",
+      "durationMs": 10000,
+      "spawnWeight": 20,
+      "minStage": 1,
+      "color": "#9b5de5",
+      "label": "🛡",
+      "texture": "bonus_star"
+    },
+    {
+      "id": "double_score",
+      "displayName": "x2 Điểm",
+      "effect": "double_score",
+      "durationMs": 10000,
+      "spawnWeight": 30,
+      "minStage": 1,
+      "color": "#ff8fab",
+      "label": "x2",
+      "texture": "bonus_double_score"
+    },
+    {
+      "id": "magnet",
+      "displayName": "Nam châm",
+      "effect": "magnet",
+      "durationMs": 10000,
+      "spawnWeight": 50,
+      "minStage": 1,
+      "color": "#e63946",
+      "label": "🧲",
+      "texture": "bonus_magnet"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "master": 0.85,
+  "music": 0.55,
+  "sfx": 0.85,
+  "muted": false,
+  "files": {
+    "bgm_menu": { "path": "/assets/audio/bgm_menu.mp3", "loop": true, "bus": "music", "volume": 0.55 },
+    "bgm_play": { "path": "/assets/audio/bgm_play.wav", "loop": true, "bus": "music", "volume": 0.65 },
+    "bgm_result": { "path": "/assets/audio/bgm_result.wav", "loop": true, "bus": "music", "volume": 0.6 },
+    "ui_click": { "path": "/assets/audio/ui_click.wav", "loop": false, "bus": "sfx", "volume": 0.8 },
+    "ui_toggle": { "path": "/assets/audio/ui_toggle.wav", "loop": false, "bus": "sfx", "volume": 0.75 },
+    "sfx_catch_good": { "path": "/assets/audio/sfx_catch_good.wav", "loop": false, "bus": "sfx", "volume": 0.9 },
+    "sfx_catch_bad": { "path": "/assets/audio/sfx_catch_bad.wav", "loop": false, "bus": "sfx", "volume": 0.9 },
+    "sfx_catch_bonus": { "path": "/assets/audio/sfx_catch_bonus.wav", "loop": false, "bus": "sfx", "volume": 0.9 },
+    "sfx_bonus_fanfare": { "path": "/assets/audio/sfx_bonus_fanfare.wav", "loop": true, "bus": "music", "volume": 0.28 },
+    "sfx_bonus_magnet": { "path": "/assets/audio/sfx_bonus_magnet.wav", "loop": false, "bus": "sfx", "volume": 0.9 },
+    "sfx_bonus_double": { "path": "/assets/audio/sfx_bonus_double.wav", "loop": false, "bus": "sfx", "volume": 0.9 },
+    "sfx_bonus_extra_time": { "path": "/assets/audio/sfx_bonus_extra_time.wav", "loop": false, "bus": "sfx", "volume": 0.9 },
+    "sfx_bonus_lucky_rain": { "path": "/assets/audio/sfx_bonus_lucky_rain.wav", "loop": false, "bus": "sfx", "volume": 0.92 },
+    "sfx_miss": { "path": "/assets/audio/sfx_miss.wav", "loop": false, "bus": "sfx", "volume": 0.7 },
+    "sfx_combo": { "path": "/assets/audio/sfx_combo.wav", "loop": false, "bus": "sfx", "volume": 0.75 },
+    "sfx_strike": { "path": "/assets/audio/sfx_strike.wav", "loop": false, "bus": "sfx", "volume": 0.85 },
+    "sfx_stage": { "path": "/assets/audio/sfx_stage.wav", "loop": false, "bus": "sfx", "volume": 0.8 },
+    "sfx_countdown": { "path": "/assets/audio/sfx_countdown.wav", "loop": false, "bus": "sfx", "volume": 0.85 },
+    "sfx_go": { "path": "/assets/audio/sfx_go.wav", "loop": false, "bus": "sfx", "volume": 0.9 },
+    "sfx_game_start": { "path": "/assets/audio/sfx_game_start.wav", "loop": false, "bus": "sfx", "volume": 0.85 },
+    "sfx_game_over": { "path": "/assets/audio/sfx_game_over.wav", "loop": false, "bus": "sfx", "volume": 0.9 },
+    "sfx_result": { "path": "/assets/audio/sfx_result.wav", "loop": false, "bus": "sfx", "volume": 0.8 }
+  }
+}

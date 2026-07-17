@@ -1,10 +1,21 @@
 import { BootScene } from './BootScene';
+import { CountdownScene } from './CountdownScene';
 import { MenuScene } from './MenuScene';
+import { PlayScene } from './PlayScene';
+import { ResultScene } from './ResultScene';
 
-/**
- * Ordered scene registry. Boot must remain first so the game
- * always starts from a known entry point.
- */
-export const gameScenes = [BootScene, MenuScene];
+export const gameScenes = [
+  BootScene,
+  MenuScene,
+  CountdownScene,
+  PlayScene,
+  ResultScene,
+];
 
-export { BootScene, MenuScene };
+export {
+  BootScene,
+  MenuScene,
+  CountdownScene,
+  PlayScene,
+  ResultScene,
+};

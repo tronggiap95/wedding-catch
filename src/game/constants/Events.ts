@@ -1,15 +1,17 @@
 /**
- * Cross-system event names for Phaser's EventEmitter / a future EventBus.
- * Payload shapes should be declared next to the emitters that fire them.
+ * Cross-system event names (GDD §2.23 + strike/score HUD).
  */
 export const Events = {
-  ItemCaught: 'item:caught',
+  ItemCollected: 'item:collected',
   ItemMissed: 'item:missed',
+  ComboChanged: 'combo:changed',
+  StrikeChanged: 'strike:changed',
   ScoreChanged: 'score:changed',
-  LivesChanged: 'lives:changed',
-  LevelStarted: 'level:started',
-  LevelCompleted: 'level:completed',
+  StageChanged: 'stage:changed',
+  TimeChanged: 'time:changed',
+  BonusActivated: 'bonus:activated',
   GameOver: 'game:over',
+  HudRefresh: 'hud:refresh',
 } as const;
 
 export type GameEvent = (typeof Events)[keyof typeof Events];

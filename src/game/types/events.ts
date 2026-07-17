@@ -1,15 +1,40 @@
-import type { ItemType } from '../constants/ItemType';
+import type { BadEffect, BonusEffect } from './config';
 import type { GameEvent } from '../constants/Events';
+import type { ItemCategory } from './config';
 
-/** Payload contracts for {@link GameEvent} names. */
 export interface EventMap {
-  'item:caught': { readonly type: ItemType; readonly score: number };
-  'item:missed': { readonly type: ItemType };
-  'score:changed': { readonly score: number };
-  'lives:changed': { readonly lives: number };
-  'level:started': { readonly levelId: string };
-  'level:completed': { readonly levelId: string; readonly score: number };
-  'game:over': { readonly score: number };
+  'item:collected': {
+    readonly id: string;
+    readonly category: ItemCategory;
+    readonly scoreDelta: number;
+  };
+  'item:missed': {
+    readonly id: string;
+    readonly category: ItemCategory;
+  };
+  'combo:changed': { readonly combo: number };
+  'strike:changed': { readonly strike: number };
+  'score:changed': { readonly score: number; readonly weddingFund: number };
+  'stage:changed': {
+    readonly stage: number;
+    readonly name: string;
+    readonly description: string;
+    readonly background: string;
+  };
+  'time:changed': { readonly elapsedMs: number };
+  'bonus:activated': {
+    readonly effect: BonusEffect | BadEffect;
+    readonly id: string;
+    readonly durationMs: number;
+  };
+  'game:over': {
+    readonly score: number;
+    readonly weddingFund: number;
+    readonly maxCombo: number;
+    readonly strike: number;
+    readonly reason: 'strike';
+  };
+  'hud:refresh': Record<string, never>;
 }
 
 export type EventPayload<K extends GameEvent> = EventMap[K];
