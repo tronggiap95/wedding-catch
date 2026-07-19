@@ -7,15 +7,13 @@ import {
   type CoupleMood,
 } from '../data/coupleDialogue';
 import { EventBus } from '../events/EventBus';
+import { MOBILE_DESIGN_WIDTH } from '../helpers/device';
 import { localeStore } from '../i18n';
 import { COUPLE_NAMES } from '../state/GuestNameStore';
 import type { RuntimeConfigFile } from '../types/config';
 import { UiTheme } from '../ui/UiTheme';
 
 type Reaction = 'idle' | 'happy' | 'sad';
-
-/** Mobile design width — keyboard speed scales up above this. */
-const KEYBOARD_SPEED_REF_WIDTH = 430;
 
 /**
  * Bride (left) + Groom (right) share one basket.
@@ -219,7 +217,7 @@ export class Player {
         const dir = (left ? -1 : 1) * invert;
         // Wide screens: keyboard must cross more pixels — scale with width.
         const keyboardSpeed =
-          this.speed * Math.max(1, width / KEYBOARD_SPEED_REF_WIDTH);
+          this.speed * Math.max(1, width / MOBILE_DESIGN_WIDTH);
         this.targetX += dir * keyboardSpeed * (deltaMs / 1000);
       }
     }

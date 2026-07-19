@@ -2,7 +2,7 @@ html {
   width: 100%;
   height: 100%;
   height: -webkit-fill-available;
-  background: #fff0e6;
+  background: #e8cfc0;
 }
 
 html,
@@ -23,7 +23,8 @@ body,
   height: 100%;
   height: 100dvh;
   height: -webkit-fill-available;
-  background: #fff0e6;
+  /* Side gutters on wide screens frame the play column */
+  background: #e8cfc0;
 }
 
 * {
@@ -32,9 +33,14 @@ body,
 
 .game-root {
   position: absolute;
-  inset: 0;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
   width: 100%;
+  max-width: 480px;
   height: 100%;
+  margin-inline: auto;
   background: #fff0e6;
 }
 

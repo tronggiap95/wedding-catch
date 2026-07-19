@@ -1,3 +1,12 @@
+/** iPhone 16 Pro Max CSS width — baseline for mobile layout / keyboard speed. */
+export const MOBILE_DESIGN_WIDTH = 430;
+
+/**
+ * Max playfield width on large screens.
+ * Slightly wider than a phone, but capped so desktop play stays fair.
+ */
+export const MAX_GAME_WIDTH = 480;
+
 /** True when the primary input model is touch (mobile / tablet). */
 export function isTouchPrimary(): boolean {
   if (typeof window === 'undefined') {
@@ -30,20 +39,18 @@ export function getDisplayPixelRatio(): number {
 }
 
 /**
- * CSS viewport size for mobile browsers (visualViewport when available).
- * Prefer this over a fixed design size so the canvas can fill the phone.
+ * CSS size for the game parent: full height, width capped for desktop fairness.
  */
 export function getViewportCssSize(): { width: number; height: number } {
   if (typeof window === 'undefined') {
-    // iPhone 16 Pro Max logical points as a sensible SSR/fallback default.
-    return { width: 430, height: 932 };
+    return { width: MOBILE_DESIGN_WIDTH, height: 932 };
   }
 
   const vv = window.visualViewport;
-  const width = Math.round(vv?.width ?? window.innerWidth);
-  const height = Math.round(vv?.height ?? window.innerHeight);
+  const rawW = Math.round(vv?.width ?? window.innerWidth);
+  const rawH = Math.round(vv?.height ?? window.innerHeight);
   return {
-    width: Math.max(1, width),
-    height: Math.max(1, height),
+    width: Math.max(1, Math.min(rawW, MAX_GAME_WIDTH)),
+    height: Math.max(1, rawH),
   };
 }

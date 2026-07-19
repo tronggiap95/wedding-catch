@@ -5,7 +5,7 @@ import { gameScenes } from '../scenes';
 
 /**
  * Builds Phaser GameConfig for a DOM parent.
- * RESIZE fills the phone viewport (iPhone 16 Pro Max first, then all devices).
+ * RESIZE fills the (max-width capped) parent — phone-first, fair on desktop.
  */
 export function createGameConfig(
   parent: HTMLElement,
@@ -34,9 +34,11 @@ export function createGameConfig(
     scale: {
       mode: Phaser.Scale.RESIZE,
       autoCenter: Phaser.Scale.CENTER_BOTH,
-      expandParent: true,
+      expandParent: false,
       width: '100%',
       height: '100%',
+      // Width cap is enforced by CSS (.game-root max-width). Do not set
+      // scale.max.width alone — Phaser would clamp maxHeight to 0.
       autoRound: true,
     },
     audio: {
