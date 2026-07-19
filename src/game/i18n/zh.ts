@@ -3,6 +3,8 @@ import type { Dictionary } from './types';
 /** Simplified Chinese. */
 export const zh: Dictionary = {
   'menu.title': 'Wedding Catch',
+  'loading.assets': '正在加载资源…',
+  'loading.ready': '准备就绪！',
   'menu.coupleNames': 'Trọng Giáp  ♥  Minh Thy',
   'menu.welcome': '欢迎各位来宾\n送上祝福并赢取奖励',
   'menu.welcomeNamed': '欢迎 {name}！\n祝福新人并赢取奖励吧',

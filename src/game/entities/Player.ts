@@ -14,6 +14,9 @@ import { UiTheme } from '../ui/UiTheme';
 
 type Reaction = 'idle' | 'happy' | 'sad';
 
+/** Mobile design width — keyboard speed scales up above this. */
+const KEYBOARD_SPEED_REF_WIDTH = 430;
+
 /**
  * Bride (left) + Groom (right) share one basket.
  * Smooth follow + can slide half off-screen to dodge.
@@ -214,7 +217,10 @@ export class Player {
 
       if (left !== right) {
         const dir = (left ? -1 : 1) * invert;
-        this.targetX += dir * this.speed * (deltaMs / 1000);
+        // Wide screens: keyboard must cross more pixels — scale with width.
+        const keyboardSpeed =
+          this.speed * Math.max(1, width / KEYBOARD_SPEED_REF_WIDTH);
+        this.targetX += dir * keyboardSpeed * (deltaMs / 1000);
       }
     }
 

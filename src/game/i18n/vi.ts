@@ -3,6 +3,8 @@ import type { Dictionary } from './types';
 /** Vietnamese (default). */
 export const vi: Dictionary = {
   'menu.title': 'Wedding Catch',
+  'loading.assets': 'Đang tải tài nguyên…',
+  'loading.ready': 'Sẵn sàng!',
   'menu.coupleNames': 'Trọng Giáp  ♥  Minh Thy',
   'menu.welcome': 'Chào mừng khách mời\nchúc phúc & nhận thưởng',
   'menu.welcomeNamed':

@@ -20,6 +20,7 @@ import {
 } from '../ui/UiFactory';
 import { UiTheme } from '../ui/UiTheme';
 import { SceneKey } from '../types/SceneKey';
+import { dismissLoadingOverlay } from '../ui/LoadingOverlay';
 
 type OverlayKind = 'guide' | 'rank';
 
@@ -123,6 +124,8 @@ export class MenuScene extends Phaser.Scene {
       audio.unlock();
       audio.ensureThemeBgm();
     });
+
+    dismissLoadingOverlay();
 
     // First visit: ask for a guest name after the entrance settles.
     if (!guestNameStore.hasCustomName()) {

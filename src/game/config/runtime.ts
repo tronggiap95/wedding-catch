@@ -23,13 +23,13 @@ function readPositiveInt(value: string | undefined, fallback: number): number {
 
 /**
  * Resolves the active runtime config.
- * Default size is mobile-first portrait; FIT scale handles desktop.
+ * Defaults match iPhone 16 Pro Max CSS points; Scale.RESIZE fills real viewport.
  */
 export function getRuntimeConfig(): RuntimeConfig {
   return {
-    width: readPositiveInt(import.meta.env.VITE_GAME_WIDTH, 390),
-    height: readPositiveInt(import.meta.env.VITE_GAME_HEIGHT, 844),
-    backgroundColor: import.meta.env.VITE_GAME_BG ?? '#1a1a2e',
+    width: readPositiveInt(import.meta.env.VITE_GAME_WIDTH, 430),
+    height: readPositiveInt(import.meta.env.VITE_GAME_HEIGHT, 932),
+    backgroundColor: import.meta.env.VITE_GAME_BG ?? '#fff0e6',
     assetBaseUrl: import.meta.env.VITE_ASSET_BASE_URL ?? '/assets/',
   };
 }

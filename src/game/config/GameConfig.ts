@@ -1,21 +1,23 @@
 import Phaser from 'phaser';
 import { getRuntimeConfig } from './runtime';
+import { getViewportCssSize } from '../helpers/device';
 import { gameScenes } from '../scenes';
 
 /**
  * Builds Phaser GameConfig for a DOM parent.
- * Mobile-first FIT scale, 60 FPS target, no React concerns.
+ * RESIZE fills the phone viewport (iPhone 16 Pro Max first, then all devices).
  */
 export function createGameConfig(
   parent: HTMLElement,
 ): Phaser.Types.Core.GameConfig {
   const runtime = getRuntimeConfig();
+  const viewport = getViewportCssSize();
 
   return {
     type: Phaser.AUTO,
     parent,
-    width: runtime.width,
-    height: runtime.height,
+    width: viewport.width,
+    height: viewport.height,
     backgroundColor: runtime.backgroundColor,
     scene: gameScenes,
     fps: {
@@ -24,18 +26,24 @@ export function createGameConfig(
     },
     render: {
       antialias: true,
+      antialiasGL: true,
       pixelArt: false,
       roundPixels: true,
       powerPreference: 'high-performance',
     },
     scale: {
-      mode: Phaser.Scale.FIT,
+      mode: Phaser.Scale.RESIZE,
       autoCenter: Phaser.Scale.CENTER_BOTH,
       expandParent: true,
+      width: '100%',
+      height: '100%',
+      autoRound: true,
     },
     audio: {
       disableWebAudio: false,
     },
     banner: false,
+    disableContextMenu: true,
+    autoFocus: true,
   };
 }

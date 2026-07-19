@@ -3,6 +3,8 @@ import type { Dictionary } from './types';
 /** English. */
 export const en: Dictionary = {
   'menu.title': 'Wedding Catch',
+  'loading.assets': 'Loading assets…',
+  'loading.ready': 'Ready!',
   'menu.coupleNames': 'Trọng Giáp  ♥  Minh Thy',
   'menu.welcome': 'Welcome, dear guests\nbless the couple & win rewards',
   'menu.welcomeNamed':
