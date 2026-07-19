@@ -8,7 +8,9 @@ import { LOCALE_LABELS, LOCALES, localeStore, t } from '../i18n';
 import type { Locale } from '../i18n/types';
 import type { AudioManager } from '../managers/AudioManager';
 import type { ResponsiveManager } from '../managers/ResponsiveManager';
+import { guestNameStore } from '../state/GuestNameStore';
 import { AudioHub } from '../ui/AudioHub';
+import { GuestNameModal } from '../ui/GuestNameModal';
 import {
   createIconButton,
   createMenuPlateButton,
@@ -50,6 +52,7 @@ export class MenuScene extends Phaser.Scene {
   private brandTitle: Phaser.GameObjects.Text | null = null;
   private coupleNames: Phaser.GameObjects.Text | null = null;
   private welcome: Phaser.GameObjects.Text | null = null;
+  private editNameBtn: Phaser.GameObjects.Text | null = null;
   private languageRoot: Phaser.GameObjects.Container | null = null;
   private couple: Phaser.GameObjects.Image | null = null;
   private playButton: Phaser.GameObjects.Container | null = null;
@@ -62,9 +65,11 @@ export class MenuScene extends Phaser.Scene {
   private overlayDim: Phaser.GameObjects.Rectangle | null = null;
   private overlayKind: OverlayKind | null = null;
   private audioHub: AudioHub | null = null;
+  private nameModal: GuestNameModal | null = null;
   private floatHearts: Phaser.GameObjects.Image[] = [];
   private unsubscribe: (() => void) | null = null;
   private unsubscribeLocale: (() => void) | null = null;
+  private unsubscribeGuestName: (() => void) | null = null;
   private starting = false;
   private playPulse: Phaser.Tweens.Tween | null = null;
 
@@ -94,6 +99,10 @@ export class MenuScene extends Phaser.Scene {
       this.refreshMute(audio);
     });
 
+    this.nameModal = new GuestNameModal(this, audio, () => {
+      this.refreshWelcome();
+    });
+
     audio.ensureThemeBgm();
     this.playEntrance();
     this.startIdleMotion();
@@ -106,10 +115,23 @@ export class MenuScene extends Phaser.Scene {
       this.scene.restart();
     });
 
+    this.unsubscribeGuestName = guestNameStore.subscribe(() => {
+      this.refreshWelcome();
+    });
+
     this.input.once('pointerdown', () => {
       audio.unlock();
       audio.ensureThemeBgm();
     });
+
+    // First visit: ask for a guest name after the entrance settles.
+    if (!guestNameStore.hasCustomName()) {
+      this.time.delayedCall(700, () => {
+        if (!this.starting) {
+          this.nameModal?.show(false);
+        }
+      });
+    }
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.playPulse?.stop();
@@ -118,8 +140,12 @@ export class MenuScene extends Phaser.Scene {
       this.unsubscribe = null;
       this.unsubscribeLocale?.();
       this.unsubscribeLocale = null;
+      this.unsubscribeGuestName?.();
+      this.unsubscribeGuestName = null;
       this.audioHub?.destroy();
       this.audioHub = null;
+      this.nameModal?.destroy();
+      this.nameModal = null;
       this.overlay?.destroy(true);
       this.overlay = null;
       this.overlayDim = null;
@@ -127,6 +153,7 @@ export class MenuScene extends Phaser.Scene {
       this.brandTitle = null;
       this.coupleNames = null;
       this.welcome = null;
+      this.editNameBtn = null;
       this.languageRoot = null;
       this.couple = null;
       this.playButton = null;
@@ -227,7 +254,7 @@ export class MenuScene extends Phaser.Scene {
       .setAlpha(0);
 
     this.welcome = this.add
-      .text(width / 2, height * 0.29, t('menu.welcome'), {
+      .text(width / 2, height * 0.29, this.welcomeMessage(), {
         fontFamily: UiTheme.font,
         fontSize: '15px',
         color: UiTheme.inkSoft,
@@ -238,6 +265,39 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(Depth.Hud)
       .setAlpha(0);
+
+    this.editNameBtn = this.add
+      .text(width / 2, height * 0.325, t('menu.editName'), {
+        fontFamily: UiTheme.font,
+        fontSize: '13px',
+        fontStyle: 'bold',
+        color: UiTheme.rose,
+        stroke: '#fff8f0',
+        strokeThickness: 3,
+      })
+      .setOrigin(0.5)
+      .setDepth(Depth.Hud)
+      .setAlpha(0)
+      .setInteractive({ useHandCursor: true })
+      .setData('isHud', true);
+
+    this.editNameBtn.on('pointerup', () => {
+      const audio = this.registry.get(RegistryKey.AudioManager) as AudioManager;
+      if (this.audioHub?.isOpen() || this.nameModal?.isOpen()) {
+        return;
+      }
+      audio.unlock();
+      audio.playSfx(Sound.UiClick);
+      this.nameModal?.show(true);
+    });
+  }
+
+  private welcomeMessage(): string {
+    return t('menu.welcomeNamed', { name: guestNameStore.getDisplayName() });
+  }
+
+  private refreshWelcome(): void {
+    this.welcome?.setText(this.welcomeMessage());
   }
 
   private buildLanguagePicker(
@@ -322,6 +382,9 @@ export class MenuScene extends Phaser.Scene {
       TextureKey.UiBtnPrimary,
     );
     this.playButton.on('pointerup', () => {
+      if (this.nameModal?.isOpen() || this.audioHub?.isOpen()) {
+        return;
+      }
       this.startGame(audio);
     });
 
@@ -334,7 +397,7 @@ export class MenuScene extends Phaser.Scene {
       48,
     );
     this.guideButton.on('pointerup', () => {
-      if (this.audioHub?.isOpen()) {
+      if (this.audioHub?.isOpen() || this.nameModal?.isOpen()) {
         return;
       }
       audio.unlock();
@@ -428,8 +491,9 @@ export class MenuScene extends Phaser.Scene {
     this.fitBanner(w, h);
     this.brandTitle?.setPosition(w / 2, h * 0.145);
     this.coupleNames?.setPosition(w / 2, h * 0.23);
-    this.welcome?.setPosition(w / 2, h * 0.29);
-    this.languageRoot?.setPosition(w / 2, h * 0.355);
+    this.welcome?.setPosition(w / 2, h * 0.285);
+    this.editNameBtn?.setPosition(w / 2, h * 0.322);
+    this.languageRoot?.setPosition(w / 2, h * 0.365);
 
     if (this.couple !== null) {
       const coupleH = Math.min(210, h * 0.28);
@@ -484,6 +548,7 @@ export class MenuScene extends Phaser.Scene {
     fadeUp(this.brandTitle, 80, 16);
     fadeUp(this.coupleNames, 140, 14);
     fadeUp(this.welcome, 180, 12);
+    fadeUp(this.editNameBtn, 200, 10);
     fadeUp(this.languageRoot, 220, 10);
     fadeUp(this.couple, 200, 28);
     fadeUp(this.playButton, 280, 28);

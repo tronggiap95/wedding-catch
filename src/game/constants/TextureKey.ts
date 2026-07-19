@@ -5,13 +5,16 @@ export const TextureKey = {
   CoupleIdle: 'couple_idle',
   CoupleHappy: 'couple_happy',
   CoupleSad: 'couple_sad',
+  CoupleDrunk: 'couple_drunk',
 
   CharDevilIdle: 'char_devil_idle',
   CharDevilThrow: 'char_devil_throw',
   CharAngelIdle: 'char_angel_idle',
   CharAngelThrow: 'char_angel_throw',
-  CharGuestIdle: 'char_guest_idle',
-  CharGuestThrow: 'char_guest_throw',
+  CharGuestMaleIdle: 'char_guest_m_idle',
+  CharGuestMaleThrow: 'char_guest_m_throw',
+  CharGuestFemaleIdle: 'char_guest_f_idle',
+  CharGuestFemaleThrow: 'char_guest_f_throw',
 
   UiBtnPause: 'ui_btn_pause',
   UiBtnPlay: 'ui_btn_play',
@@ -66,8 +69,10 @@ export const CHARACTER_TEXTURES = [
   TextureKey.CharDevilThrow,
   TextureKey.CharAngelIdle,
   TextureKey.CharAngelThrow,
-  TextureKey.CharGuestIdle,
-  TextureKey.CharGuestThrow,
+  TextureKey.CharGuestMaleIdle,
+  TextureKey.CharGuestMaleThrow,
+  TextureKey.CharGuestFemaleIdle,
+  TextureKey.CharGuestFemaleThrow,
 ] as const;
 
 export const BACKGROUND_TEXTURES = [

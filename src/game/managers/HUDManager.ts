@@ -2,8 +2,9 @@ import Phaser from 'phaser';
 import { Depth } from '../constants/Depth';
 import { Events } from '../constants/Events';
 import { TextureKey } from '../constants/TextureKey';
+import type { ThrowerCharacters } from '../entities/ThrowerCharacters';
 import { EventBus } from '../events/EventBus';
-import { localeStore, t } from '../i18n';
+import { t } from '../i18n';
 import type { GameState } from '../state/GameState';
 import type { ComboTier } from '../types/config';
 import { UiTheme } from '../ui/UiTheme';
@@ -19,51 +20,54 @@ interface ComboStyle {
 
 /**
  * Gameplay HUD:
- * - Top: score / time / hearts
- * - Mid-left: Giai Đoạn flavor (behind items)
- * - Mid-right: combo (behind items & couple) + bonus timers on HUD
+ * - Top: time / hearts (score on devil badge via ThrowerCharacters)
+ * - Mid-left: stage flavor + special-bad timers (behind items)
+ * - Mid-right: combo + bonus timers (behind items)
  */
 export class HUDManager {
+  /** Soft enough that falling items stay readable over flavor text. */
+  private static readonly flavorAlpha = 0.52;
+
   private readonly scene: Phaser.Scene;
   private readonly state: GameState;
+  private readonly throwers: ThrowerCharacters;
   private readonly comboTiers: readonly ComboTier[];
   private readonly maxStrikes = 3;
 
   private readonly timePill: Phaser.GameObjects.Image;
   private readonly timeText: Phaser.GameObjects.Text;
-  private readonly scorePill: Phaser.GameObjects.Image;
-  private readonly scoreLabel: Phaser.GameObjects.Text;
-  private readonly scoreText: Phaser.GameObjects.Text;
   private readonly stageText: Phaser.GameObjects.Text;
-  private readonly fundIcon: Phaser.GameObjects.Image;
-  private readonly fundText: Phaser.GameObjects.Text;
   private readonly hearts: Phaser.GameObjects.Image[] = [];
   private readonly comboRoot: Phaser.GameObjects.Container;
   private readonly comboText: Phaser.GameObjects.Text;
   private readonly comboMultText: Phaser.GameObjects.Text;
   private readonly bonusText: Phaser.GameObjects.Text;
+  private readonly debuffText: Phaser.GameObjects.Text;
 
   private readonly comboAnchorX: number;
   private readonly comboAnchorY: number;
+  private readonly effectAnchorY: number;
+  private readonly leftFlavorX: number;
   private lastCombo = 0;
   private lastBonusKey = '';
+  private lastDebuffKey = '';
 
   public constructor(
     scene: Phaser.Scene,
     state: GameState,
     comboTiers: readonly ComboTier[],
+    throwers: ThrowerCharacters,
   ) {
     this.scene = scene;
     this.state = state;
     this.comboTiers = comboTiers;
+    this.throwers = throwers;
 
     const { width, height } = scene.scale;
     const topY = UiTheme.topPad + 22;
-    // Reserve top-right for mute + pause (PauseMenu uses the same math).
     const controlsLeft =
       width - 14 - UiTheme.iconBtn * 2 - UiTheme.controlGap - UiTheme.iconBtn / 2 - 10;
 
-    // Left: time
     this.timePill = scene.add
       .image(14 + 48, topY, TextureKey.UiHudPill)
       .setDisplaySize(96, 34)
@@ -81,56 +85,6 @@ export class HUDManager {
       .setDepth(Depth.Hud)
       .setScrollFactor(0);
 
-    // Left under time: wedding fund
-    this.fundIcon = scene.add
-      .image(18, topY + 26, TextureKey.UiIconCoin)
-      .setDisplaySize(18, 18)
-      .setDepth(Depth.Hud)
-      .setScrollFactor(0);
-
-    this.fundText = scene.add
-      .text(this.fundIcon.x + 12, this.fundIcon.y, '0', {
-        fontFamily: UiTheme.font,
-        fontSize: '12px',
-        fontStyle: 'bold',
-        color: UiTheme.inkSoft,
-      })
-      .setOrigin(0, 0.5)
-      .setDepth(Depth.Hud)
-      .setScrollFactor(0);
-
-    // Center: score (compact — no oversized pill fighting the controls)
-    this.scorePill = scene.add
-      .image(width / 2, topY + 2, TextureKey.UiHudPill)
-      .setDisplaySize(150, 48)
-      .setDepth(Depth.Hud)
-      .setScrollFactor(0);
-
-    this.scoreLabel = scene.add
-      .text(width / 2, topY - 12, t('hud.score'), {
-        fontFamily: UiTheme.font,
-        fontSize: '10px',
-        fontStyle: 'bold',
-        color: UiTheme.inkSoft,
-      })
-      .setOrigin(0.5)
-      .setDepth(Depth.Hud)
-      .setScrollFactor(0);
-
-    this.scoreText = scene.add
-      .text(width / 2, topY + 8, '0', {
-        fontFamily: UiTheme.font,
-        fontSize: '28px',
-        fontStyle: 'bold',
-        color: UiTheme.ink,
-        stroke: '#fff8f0',
-        strokeThickness: 5,
-      })
-      .setOrigin(0.5)
-      .setDepth(Depth.Hud)
-      .setScrollFactor(0);
-
-    // Hearts sit left of mute/pause, never over the score.
     const heartGap = UiTheme.heart + 3;
     const heartsBlock = this.maxStrikes * heartGap;
     const heartsStart = controlsLeft - heartsBlock;
@@ -143,7 +97,6 @@ export class HUDManager {
       this.hearts.push(heart);
     }
 
-    // Stage flavor: behind items & couple.
     this.stageText = scene.add
       .text(18, height * 0.38, '', {
         fontFamily: UiTheme.font,
@@ -161,9 +114,10 @@ export class HUDManager {
       .setScrollFactor(0)
       .setAlpha(0.3);
 
-    // Combo sits above the couple, behind falling items.
     this.comboAnchorX = width - 22;
     this.comboAnchorY = height * 0.58;
+    this.effectAnchorY = this.comboAnchorY + 40;
+    this.leftFlavorX = 18;
 
     this.comboText = scene.add
       .text(0, -14, '', {
@@ -198,7 +152,7 @@ export class HUDManager {
       .setAlpha(0);
 
     this.bonusText = scene.add
-      .text(this.comboAnchorX, this.comboAnchorY + 40, '', {
+      .text(this.comboAnchorX, this.effectAnchorY, '', {
         fontFamily: UiTheme.font,
         fontSize: '14px',
         fontStyle: 'bold',
@@ -206,9 +160,27 @@ export class HUDManager {
         stroke: '#fff8f0',
         strokeThickness: 4,
         align: 'right',
+        wordWrap: { width: Math.min(200, width * 0.42) },
       })
       .setOrigin(1, 0)
-      .setDepth(Depth.Hud)
+      .setDepth(Depth.Atmosphere)
+      .setScrollFactor(0)
+      .setVisible(false)
+      .setAlpha(0);
+
+    this.debuffText = scene.add
+      .text(this.leftFlavorX, this.effectAnchorY, '', {
+        fontFamily: UiTheme.font,
+        fontSize: '14px',
+        fontStyle: 'bold',
+        color: '#c1121f',
+        stroke: '#fff8f0',
+        strokeThickness: 4,
+        align: 'left',
+        wordWrap: { width: Math.min(200, width * 0.42) },
+      })
+      .setOrigin(0, 0)
+      .setDepth(Depth.Atmosphere)
       .setScrollFactor(0)
       .setVisible(false)
       .setAlpha(0);
@@ -234,46 +206,29 @@ export class HUDManager {
     EventBus.off(Events.HudRefresh, this.refresh, this);
 
     this.scene.tweens.killTweensOf([
-      this.scoreText,
       this.comboRoot,
       this.bonusText,
+      this.debuffText,
       this.stageText,
     ]);
 
     this.timePill.destroy();
     this.timeText.destroy();
-    this.scorePill.destroy();
-    this.scoreLabel.destroy();
-    this.scoreText.destroy();
     this.stageText.destroy();
-    this.fundIcon.destroy();
-    this.fundText.destroy();
     this.comboRoot.destroy(true);
     this.bonusText.destroy();
+    this.debuffText.destroy();
     this.hearts.forEach((h) => h.destroy());
   }
 
   public tickBonuses(): void {
-    // Only tick bonus timers — do not reset combo scale tweens every frame.
+    // Only tick effect timers — do not reset combo scale tweens every frame.
     this.refreshBonuses();
+    this.refreshDebuffs();
   }
 
   private refresh = (): void => {
-    const prevScore = this.scoreText.text;
-    const nextScore = `${this.state.score}`;
-    this.scoreText.setText(nextScore);
-    if (prevScore !== nextScore && this.state.score > 0) {
-      this.scene.tweens.killTweensOf(this.scoreText);
-      this.scoreText.setScale(1.18);
-      this.scene.tweens.add({
-        targets: this.scoreText,
-        scale: 1,
-        duration: 180,
-        ease: 'Back.Out',
-      });
-    }
-
-    this.fundText.setText(localeStore.formatNumber(this.state.weddingFund));
+    this.throwers.setScore(this.state.score);
 
     const remaining = Math.max(0, this.maxStrikes - this.state.strike);
     this.hearts.forEach((heart, index) => {
@@ -285,6 +240,7 @@ export class HUDManager {
 
     this.refreshCombo();
     this.refreshBonuses();
+    this.refreshDebuffs();
   };
 
   private refreshCombo(): void {
@@ -293,6 +249,7 @@ export class HUDManager {
     const doubleOn = this.state.doubleScoreRemainingMs > 0;
     const totalMult = comboMult * (doubleOn ? 2 : 1);
     const style = this.styleForCombo(combo);
+    const alpha = HUDManager.flavorAlpha;
 
     if (combo <= 0) {
       this.lastCombo = 0;
@@ -322,7 +279,7 @@ export class HUDManager {
 
     if (!grew) {
       // Keep current tween/scale — only ensure visible.
-      this.comboRoot.setAlpha(1);
+      this.comboRoot.setAlpha(alpha);
       return;
     }
 
@@ -330,7 +287,7 @@ export class HUDManager {
     this.scene.tweens.killTweensOf(this.comboRoot);
     this.comboRoot
       .setPosition(this.comboAnchorX, this.comboAnchorY)
-      .setAlpha(1)
+      .setAlpha(alpha)
       .setScale(style.scale * 0.82);
 
     this.scene.tweens.add({
@@ -358,13 +315,6 @@ export class HUDManager {
         }),
       );
     }
-    if (this.state.repelRemainingMs > 0) {
-      lines.push(
-        t('hud.bonus.repel', {
-          seconds: Math.ceil(this.state.repelRemainingMs / 1000),
-        }),
-      );
-    }
     if (this.state.doubleScoreRemainingMs > 0) {
       lines.push(
         t('hud.bonus.double', {
@@ -380,30 +330,66 @@ export class HUDManager {
       );
     }
 
+    this.showFlavorLines(this.bonusText, lines, this.comboAnchorX, 'lastBonusKey');
+  }
+
+  private refreshDebuffs(): void {
+    const lines: string[] = [];
+    if (this.state.repelRemainingMs > 0) {
+      lines.push(
+        t('hud.debuff.repel', {
+          seconds: Math.ceil(this.state.repelRemainingMs / 1000),
+        }),
+      );
+    }
+    if (this.state.drunkRemainingMs > 0) {
+      lines.push(
+        t('hud.debuff.drunk', {
+          seconds: Math.ceil(this.state.drunkRemainingMs / 1000),
+        }),
+      );
+    }
+
+    this.showFlavorLines(
+      this.debuffText,
+      lines,
+      this.leftFlavorX,
+      'lastDebuffKey',
+    );
+  }
+
+  private showFlavorLines(
+    target: Phaser.GameObjects.Text,
+    lines: string[],
+    x: number,
+    keyField: 'lastBonusKey' | 'lastDebuffKey',
+  ): void {
     const key = lines.join('|');
-    const appeared = key !== '' && key !== this.lastBonusKey;
-    this.lastBonusKey = key;
+    const appeared = key !== '' && key !== this[keyField];
+    this[keyField] = key;
+    const alpha = HUDManager.flavorAlpha;
+    const y = this.effectAnchorY;
 
     if (lines.length === 0) {
-      this.scene.tweens.killTweensOf(this.bonusText);
-      this.bonusText.setVisible(false).setAlpha(0);
+      this.scene.tweens.killTweensOf(target);
+      target.setVisible(false).setAlpha(0);
       return;
     }
 
-    this.bonusText.setText(lines.join('\n')).setVisible(true);
+    target.setText(lines.join('\n')).setVisible(true).setX(x);
 
     if (appeared) {
-      this.scene.tweens.killTweensOf(this.bonusText);
-      this.bonusText.setAlpha(0).setY(this.comboAnchorY + 52);
+      this.scene.tweens.killTweensOf(target);
+      target.setAlpha(0).setY(y + 12);
       this.scene.tweens.add({
-        targets: this.bonusText,
-        alpha: 1,
-        y: this.comboAnchorY + 40,
+        targets: target,
+        alpha,
+        y,
         duration: 240,
         ease: 'Cubic.Out',
       });
     } else {
-      this.bonusText.setAlpha(1).setY(this.comboAnchorY + 40);
+      target.setAlpha(alpha).setY(y);
     }
   }
 

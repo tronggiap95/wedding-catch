@@ -82,6 +82,7 @@ export class PlayScene extends Phaser.Scene {
       this,
       this.state,
       this.config.items.comboTiers,
+      this.throwers,
     );
     // Pause/mute after HUD so their hit Zones sit above HUD art in the input stack.
     this.pauseMenu = new PauseMenu(this, this.audio, {
@@ -131,6 +132,10 @@ export class PlayScene extends Phaser.Scene {
 
     this.throwers.update(delta);
     this.player.setInvincible(this.state.invincibleRemainingMs > 0);
+    this.player.setDrunk(this.state.drunkRemainingMs > 0);
+    this.player.setSpecialBad(
+      this.state.repelRemainingMs > 0 || this.state.drunkRemainingMs > 0,
+    );
     this.player.update(delta);
     this.spawnManager.update(delta, this.stageManager.current);
 

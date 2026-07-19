@@ -61,12 +61,15 @@ export class StageBackground {
     this.applyStageWash(payload.stage);
   };
 
-  /** Stage 6 (wedding) gets a darker wash so bright art does not wash out items. */
+  /** Later stages get a slightly darker wash so bright art does not wash out items. */
   private applyStageWash(stage: number): void {
     const { width, height } = this.scene.scale;
     this.wash.setPosition(width / 2, height / 2).setSize(width, height);
     if (stage >= 6) {
       this.wash.setFillStyle(0x241830, 0.32);
+    } else if (stage >= 5) {
+      // Engagement hall: warm rose veil — less glare than cream wash.
+      this.wash.setFillStyle(0x4a2038, 0.16);
     } else {
       this.wash.setFillStyle(0xfff5eb, 0.18);
     }

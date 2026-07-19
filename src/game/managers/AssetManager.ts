@@ -49,6 +49,7 @@ const ITEM_TEXTURES = [
   'bad_rotten_egg',
   'bad_stress',
   'bad_magnet',
+  'bad_beer',
   'bonus_magnet',
   'bonus_double_score',
   'bonus_star',
@@ -81,6 +82,7 @@ export class AssetManager {
     this.load.image(TextureKey.CoupleIdle, '/assets/images/couple_idle.png');
     this.load.image(TextureKey.CoupleHappy, '/assets/images/couple_happy.png');
     this.load.image(TextureKey.CoupleSad, '/assets/images/couple_sad.png');
+    this.load.image(TextureKey.CoupleDrunk, '/assets/images/couple_drunk.png');
 
     for (const key of UI_TEXTURES) {
       this.load.image(key, `/assets/images/ui/${key}.png`);

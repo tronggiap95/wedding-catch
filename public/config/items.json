@@ -65,6 +65,7 @@
     { "id": "rotten_egg", "displayName": "Rotten Egg", "category": "bad", "rarity": "common", "score": 0, "spawnWeight": 1, "minStage": 1, "color": "#94a89a", "label": "🥚", "texture": "bad_rotten_egg" },
     { "id": "stress", "displayName": "Stress", "category": "bad", "rarity": "common", "score": 0, "spawnWeight": 1, "minStage": 1, "color": "#9d4edd", "label": "😵", "texture": "bad_stress" },
 
-    { "id": "bad_magnet", "displayName": "Bad Magnet", "category": "bad", "rarity": "rare", "score": 0, "spawnWeight": 0.35, "minStage": 2, "color": "#8b0000", "label": "🧲", "texture": "bad_magnet", "special": true, "badEffect": "repel", "fallSpeedMul": 2, "effectDurationMs": 10000 }
+    { "id": "bad_magnet", "displayName": "Bad Magnet", "category": "bad", "rarity": "rare", "score": 0, "spawnWeight": 0.55, "minStage": 2, "color": "#8b0000", "label": "🧲", "texture": "bad_magnet", "special": true, "badEffect": "repel", "fallSpeedMul": 2, "effectDurationMs": 7000 },
+    { "id": "bad_beer", "displayName": "Beer", "category": "bad", "rarity": "rare", "score": 0, "spawnWeight": 0.55, "minStage": 2, "color": "#f4a261", "label": "🍺", "texture": "bad_beer", "special": true, "badEffect": "drunk", "fallSpeedMul": 2, "effectDurationMs": 7000 }
   ]
 }

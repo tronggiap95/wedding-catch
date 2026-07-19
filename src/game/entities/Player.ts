@@ -2,9 +2,15 @@ import Phaser from 'phaser';
 import { Depth } from '../constants/Depth';
 import { Events } from '../constants/Events';
 import { TextureKey } from '../constants/TextureKey';
+import {
+  pickCoupleLines,
+  type CoupleMood,
+} from '../data/coupleDialogue';
 import { EventBus } from '../events/EventBus';
-import { t } from '../i18n';
+import { localeStore } from '../i18n';
+import { COUPLE_NAMES } from '../state/GuestNameStore';
 import type { RuntimeConfigFile } from '../types/config';
+import { UiTheme } from '../ui/UiTheme';
 
 type Reaction = 'idle' | 'happy' | 'sad';
 
@@ -16,7 +22,12 @@ export class Player {
   public readonly container: Phaser.GameObjects.Container;
   private readonly scene: Phaser.Scene;
   private readonly sprite: Phaser.GameObjects.Image;
-  private readonly reactionText: Phaser.GameObjects.Text;
+  private readonly brideBubble: Phaser.GameObjects.Container;
+  private readonly brideBubbleBg: Phaser.GameObjects.Graphics;
+  private readonly brideBubbleText: Phaser.GameObjects.Text;
+  private readonly groomBubble: Phaser.GameObjects.Container;
+  private readonly groomBubbleBg: Phaser.GameObjects.Graphics;
+  private readonly groomBubbleText: Phaser.GameObjects.Text;
   private readonly hitbox: Phaser.GameObjects.Rectangle;
   private targetX: number;
   private readonly speed: number;
@@ -34,6 +45,10 @@ export class Player {
   private inputEnabled = true;
   private invincible = false;
   private invincibleBlinkMs = 0;
+  private drunk = false;
+  private specialBad = false;
+
+  private static readonly specialBadTint = 0xff2a2a;
 
   public constructor(scene: Phaser.Scene, runtime: RuntimeConfigFile) {
     this.scene = scene;
@@ -63,19 +78,51 @@ export class Player {
       )
       .setOrigin(0.5);
 
-    this.reactionText = scene.add
-      .text(0, -runtime.playerHeight * 0.58, '', {
-        fontFamily: 'Georgia, "Times New Roman", serif',
-        fontSize: '22px',
-        color: '#ffffff',
-        stroke: '#2b2118',
-        strokeThickness: 5,
+    this.brideBubbleBg = scene.add.graphics();
+    this.brideBubbleText = scene.add
+      .text(0, 0, '', {
+        fontFamily: UiTheme.font,
+        fontSize: '12px',
+        fontStyle: 'bold',
+        color: '#7a3050',
+        align: 'center',
+        wordWrap: { width: 110 },
       })
-      .setOrigin(0.5)
+      .setOrigin(0.5);
+    this.brideBubble = scene.add
+      .container(-this.spriteWidth * 0.28, -this.spriteHeight * 0.62, [
+        this.brideBubbleBg,
+        this.brideBubbleText,
+      ])
+      .setVisible(false)
+      .setAlpha(0);
+
+    this.groomBubbleBg = scene.add.graphics();
+    this.groomBubbleText = scene.add
+      .text(0, 0, '', {
+        fontFamily: UiTheme.font,
+        fontSize: '12px',
+        fontStyle: 'bold',
+        color: '#3d4a6b',
+        align: 'center',
+        wordWrap: { width: 110 },
+      })
+      .setOrigin(0.5);
+    this.groomBubble = scene.add
+      .container(this.spriteWidth * 0.28, -this.spriteHeight * 0.62, [
+        this.groomBubbleBg,
+        this.groomBubbleText,
+      ])
+      .setVisible(false)
       .setAlpha(0);
 
     this.container = scene.add
-      .container(this.targetX, y, [this.sprite, this.hitbox, this.reactionText])
+      .container(this.targetX, y, [
+        this.sprite,
+        this.hitbox,
+        this.brideBubble,
+        this.groomBubble,
+      ])
       .setDepth(Depth.Player);
 
     const keyboard = scene.input.keyboard;
@@ -119,10 +166,33 @@ export class Player {
   public setInvincible(active: boolean): void {
     this.invincible = active;
     if (!active) {
-      this.sprite.setAlpha(1);
-      this.sprite.clearTint();
       this.invincibleBlinkMs = 0;
+      this.refreshTint();
     }
+  }
+
+  public setDrunk(active: boolean): void {
+    const wasDrunk = this.drunk;
+    this.drunk = active;
+    if (this.reaction !== 'idle') {
+      return;
+    }
+    if (active || wasDrunk) {
+      this.applyIdleTexture();
+      this.refreshTint();
+    }
+  }
+
+  /** Special-bad affliction: full red tint on the couple. */
+  public setSpecialBad(active: boolean): void {
+    if (this.specialBad === active) {
+      if (active) {
+        this.refreshTint();
+      }
+      return;
+    }
+    this.specialBad = active;
+    this.refreshTint();
   }
 
   public update(deltaMs: number): void {
@@ -134,6 +204,7 @@ export class Player {
     // Allow half the couple off-screen left/right for dodging.
     const minX = 0;
     const maxX = width;
+    const invert = this.drunk ? -1 : 1;
 
     if (!this.pointerActive) {
       const left =
@@ -142,7 +213,7 @@ export class Player {
         (this.cursors?.right.isDown ?? false) || (this.keyD?.isDown ?? false);
 
       if (left !== right) {
-        const dir = left ? -1 : 1;
+        const dir = (left ? -1 : 1) * invert;
         this.targetX += dir * this.speed * (deltaMs / 1000);
       }
     }
@@ -170,30 +241,44 @@ export class Player {
 
   private onItemCollected = (payload: {
     category: 'good' | 'bad' | 'bonus';
+    special?: boolean;
   }): void => {
-    if (payload.category === 'good' || payload.category === 'bonus') {
-      this.showReaction('happy', t('player.thanks'));
-      return;
+    let mood: CoupleMood = 'good';
+    let kind: Reaction = 'happy';
+
+    if (payload.category === 'bonus') {
+      mood = 'bonus';
+      kind = 'happy';
+    } else if (payload.category === 'bad') {
+      if (payload.special === true) {
+        mood = 'specialBad';
+        kind = 'sad';
+      } else if (this.invincible) {
+        mood = 'good';
+        kind = 'happy';
+      } else {
+        mood = 'bad';
+        kind = 'sad';
+      }
     }
 
-    if (payload.category === 'bad') {
-      if (this.invincible) {
-        this.showReaction('happy', t('player.hehe'));
-        return;
-      }
-      this.showReaction('sad', t('player.sad'));
-    }
+    const lines = pickCoupleLines(localeStore.getLocale(), mood);
+    this.showReaction(kind, lines.bride, lines.groom);
   };
 
-  private showReaction(kind: 'happy' | 'sad', label: string): void {
+  private showReaction(
+    kind: 'happy' | 'sad',
+    brideLine: string,
+    groomLine: string,
+  ): void {
     this.reaction = kind;
     const texture =
       kind === 'happy' ? TextureKey.CoupleHappy : TextureKey.CoupleSad;
     this.sprite
       .setTexture(texture)
       .setDisplaySize(this.spriteWidth, this.spriteHeight);
+    this.refreshTint();
 
-    // Soft pop on catch — keeps focus on the catching couple.
     this.scene.tweens.killTweensOf(this.sprite);
     this.sprite.setDisplaySize(this.spriteWidth, this.spriteHeight);
     this.scene.tweens.add({
@@ -208,68 +293,155 @@ export class Player {
       },
     });
 
-    this.reactionText
-      .setText(label)
-      .setColor(kind === 'happy' ? '#ffe066' : '#ff8fa3')
-      .setAlpha(1)
-      .setScale(0.75)
-      .setY(-this.spriteHeight * 0.58);
-
-    this.scene.tweens.killTweensOf(this.reactionText);
-    this.scene.tweens.add({
-      targets: this.reactionText,
-      y: -this.spriteHeight * 0.74,
-      scale: 1.08,
-      duration: 240,
-      ease: 'Cubic.Out',
-    });
+    this.paintBubble(
+      this.brideBubble,
+      this.brideBubbleBg,
+      this.brideBubbleText,
+      `${COUPLE_NAMES.bride}\n${brideLine}`,
+      0xffe4ef,
+      0xff8fab,
+      -this.spriteWidth * 0.28,
+    );
+    this.paintBubble(
+      this.groomBubble,
+      this.groomBubbleBg,
+      this.groomBubbleText,
+      `${COUPLE_NAMES.groom}\n${groomLine}`,
+      0xe8f0ff,
+      0x7aa2e3,
+      this.spriteWidth * 0.28,
+    );
 
     this.reactionTimer?.remove(false);
-    this.reactionTimer = this.scene.time.delayedCall(850, () => {
+    this.reactionTimer = this.scene.time.delayedCall(1600, () => {
       this.clearReaction();
+    });
+  }
+
+  private paintBubble(
+    root: Phaser.GameObjects.Container,
+    bg: Phaser.GameObjects.Graphics,
+    text: Phaser.GameObjects.Text,
+    line: string,
+    fill: number,
+    stroke: number,
+    x: number,
+  ): void {
+    this.scene.tweens.killTweensOf(root);
+    text.setText(line);
+    const padX = 9;
+    const padY = 6;
+    const tw = Math.min(110, Math.max(42, text.width));
+    const th = Math.max(24, text.height);
+    const boxW = tw + padX * 2;
+    const boxH = th + padY * 2;
+    text.setPosition(0, -4);
+    bg.clear();
+    bg.fillStyle(0x000000, 0.1);
+    bg.fillRoundedRect(-boxW / 2 + 1, -boxH / 2 + 2, boxW, boxH, 10);
+    bg.fillStyle(fill, 0.96);
+    bg.lineStyle(2, stroke, 1);
+    bg.fillRoundedRect(-boxW / 2, -boxH / 2, boxW, boxH, 10);
+    bg.strokeRoundedRect(-boxW / 2, -boxH / 2, boxW, boxH, 10);
+    // Pointer down toward couple
+    bg.fillStyle(fill, 0.96);
+    bg.beginPath();
+    bg.moveTo(-6, boxH / 2 - 1);
+    bg.lineTo(0, boxH / 2 + 7);
+    bg.lineTo(6, boxH / 2 - 1);
+    bg.closePath();
+    bg.fillPath();
+    bg.lineStyle(2, stroke, 1);
+    bg.beginPath();
+    bg.moveTo(-6, boxH / 2 - 1);
+    bg.lineTo(0, boxH / 2 + 7);
+    bg.lineTo(6, boxH / 2 - 1);
+    bg.strokePath();
+
+    root
+      .setPosition(x, -this.spriteHeight * 0.72)
+      .setVisible(true)
+      .setAlpha(0)
+      .setScale(0.7);
+    this.scene.tweens.add({
+      targets: root,
+      alpha: 1,
+      scale: 1,
+      y: -this.spriteHeight * 0.78,
+      duration: 220,
+      ease: 'Back.Out',
     });
   }
 
   private clearReaction(): void {
     this.reaction = 'idle';
+    this.applyIdleTexture();
+    this.refreshTint();
+
+    for (const bubble of [this.brideBubble, this.groomBubble]) {
+      this.scene.tweens.killTweensOf(bubble);
+      this.scene.tweens.add({
+        targets: bubble,
+        alpha: 0,
+        scale: 0.86,
+        y: -this.spriteHeight * 0.7,
+        duration: 180,
+        ease: 'Sine.In',
+        onComplete: () => {
+          bubble.setVisible(false);
+        },
+      });
+    }
+  }
+
+  private applyIdleTexture(): void {
+    const texture = this.drunk ? TextureKey.CoupleDrunk : TextureKey.CoupleIdle;
     this.sprite
-      .setTexture(TextureKey.CoupleIdle)
+      .setTexture(texture)
       .setDisplaySize(this.spriteWidth, this.spriteHeight);
+  }
+
+  private refreshTint(): void {
+    if (this.specialBad) {
+      this.sprite.setTint(Player.specialBadTint).setAlpha(1);
+      return;
+    }
     if (!this.invincible) {
       this.sprite.clearTint().setAlpha(1);
     }
-
-    this.scene.tweens.add({
-      targets: this.reactionText,
-      alpha: 0,
-      y: -this.spriteHeight * 0.58,
-      duration: 160,
-      ease: 'Sine.In',
-    });
   }
 
   private updateMotionFx(deltaMs: number, dx: number): void {
     this.bobMs += deltaMs;
     const moving = Math.abs(dx) > 0.08;
+    const leanAmp = this.drunk ? 11 : 7;
+    const bobAmp = this.drunk ? 3.6 : 2.4;
 
-    const desiredLean = moving ? Phaser.Math.Clamp(dx * 2.2, -7, 7) : 0;
+    const desiredLean = moving ? Phaser.Math.Clamp(dx * 2.2, -leanAmp, leanAmp) : 0;
     this.lean = Phaser.Math.Linear(this.lean, desiredLean, 0.18);
-    this.sprite.setAngle(this.lean);
+    // Extra tipsy sway while drunk even when idle.
+    const tipsy = this.drunk ? Math.sin(this.bobMs / 140) * 3.2 : 0;
+    this.sprite.setAngle(this.lean + tipsy);
 
     if (moving) {
       // Smooth run bob while catching unit slides.
-      this.sprite.y = Math.sin(this.bobMs / 85) * 2.4;
+      this.sprite.y = Math.sin(this.bobMs / 85) * bobAmp;
       return;
     }
 
     if (this.reaction === 'idle') {
-      this.sprite.y = Math.sin(this.bobMs / 380) * 1.5;
+      this.sprite.y = Math.sin(this.bobMs / (this.drunk ? 220 : 380)) * (this.drunk ? 2.4 : 1.5);
     } else {
       this.sprite.y = Phaser.Math.Linear(this.sprite.y, 0, 0.18);
     }
   }
 
   private updateInvincibleBlink(deltaMs: number): void {
+    if (this.specialBad) {
+      this.sprite.setTint(Player.specialBadTint).setAlpha(1);
+      return;
+    }
+
     if (!this.invincible) {
       return;
     }
@@ -298,7 +470,8 @@ export class Player {
 
     this.pointerActive = true;
     const { width } = this.scene.scale;
-    this.targetX = Phaser.Math.Clamp(pointer.worldX, 0, width);
+    const worldX = this.drunk ? width - pointer.worldX : pointer.worldX;
+    this.targetX = Phaser.Math.Clamp(worldX, 0, width);
   }
 
   private onPointerUp(): void {

@@ -7,6 +7,7 @@ export interface EventMap {
     readonly id: string;
     readonly category: ItemCategory;
     readonly scoreDelta: number;
+    readonly special?: boolean;
   };
   'item:missed': {
     readonly id: string;

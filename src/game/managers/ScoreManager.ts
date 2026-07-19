@@ -33,6 +33,13 @@ export class ScoreManager {
       );
     }
 
+    if (this.state.drunkRemainingMs > 0) {
+      this.state.drunkRemainingMs = Math.max(
+        0,
+        this.state.drunkRemainingMs - deltaMs,
+      );
+    }
+
     if (this.state.doubleScoreRemainingMs > 0) {
       this.state.doubleScoreRemainingMs = Math.max(
         0,
@@ -84,6 +91,7 @@ export class ScoreManager {
       id: item.id,
       category: 'bad',
       scoreDelta: 0,
+      special: item.special === true,
     });
 
     // Special bad (e.g. bad magnet): no strike / combo reset; apply effect.
@@ -108,15 +116,36 @@ export class ScoreManager {
     }
   }
 
+  private hasSpecialBad(): boolean {
+    return this.state.repelRemainingMs > 0 || this.state.drunkRemainingMs > 0;
+  }
+
+  private clearGoodBonuses(): void {
+    this.state.magnetRemainingMs = 0;
+    this.state.doubleScoreRemainingMs = 0;
+    this.state.invincibleRemainingMs = 0;
+    this.state.scoreMultiplier = 1;
+  }
+
   private applySpecialBad(item: ItemDefinition): void {
-    const durationMs = item.effectDurationMs ?? 10_000;
+    // Special bad always wins — wipe active good bonuses immediately.
+    this.clearGoodBonuses();
+    EventBus.emit(Events.HudRefresh, {});
+
+    const durationMs = item.effectDurationMs ?? 7_000;
     switch (item.badEffect) {
       case 'repel':
-        // Inverse of good magnet — cancel pull while pushing goods away.
-        this.state.magnetRemainingMs = 0;
         this.state.repelRemainingMs = durationMs;
         EventBus.emit(Events.BonusActivated, {
           effect: 'repel',
+          id: item.id,
+          durationMs,
+        });
+        break;
+      case 'drunk':
+        this.state.drunkRemainingMs = durationMs;
+        EventBus.emit(Events.BonusActivated, {
+          effect: 'drunk',
           id: item.id,
           durationMs,
         });
@@ -130,9 +159,20 @@ export class ScoreManager {
     this.state.combo += 1;
     this.state.maxCombo = Math.max(this.state.maxCombo, this.state.combo);
 
+    EventBus.emit(Events.ComboChanged, { combo: this.state.combo });
+    EventBus.emit(Events.ItemCollected, {
+      id: bonus.id,
+      category: 'bonus',
+      scoreDelta: 0,
+    });
+
+    // While afflicted by special bad, good specials do nothing.
+    if (this.hasSpecialBad()) {
+      return;
+    }
+
     switch (bonus.effect) {
       case 'magnet':
-        this.state.repelRemainingMs = 0;
         this.state.magnetRemainingMs = bonus.durationMs;
         break;
       case 'double_score':
@@ -146,16 +186,10 @@ export class ScoreManager {
         break;
     }
 
-    EventBus.emit(Events.ComboChanged, { combo: this.state.combo });
     EventBus.emit(Events.BonusActivated, {
       effect: bonus.effect,
       id: bonus.id,
       durationMs: bonus.durationMs,
-    });
-    EventBus.emit(Events.ItemCollected, {
-      id: bonus.id,
-      category: 'bonus',
-      scoreDelta: 0,
     });
   }
 

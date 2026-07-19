@@ -10,7 +10,7 @@ export type ItemRarity =
 export type BonusEffect = 'magnet' | 'double_score' | 'invincible';
 
 /** Special bad-item effects (no strike; category stays `bad`). */
-export type BadEffect = 'repel';
+export type BadEffect = 'repel' | 'drunk';
 
 export interface RuntimeConfigFile {
   readonly maxStrikes: number;

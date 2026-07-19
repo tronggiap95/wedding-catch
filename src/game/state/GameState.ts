@@ -17,6 +17,7 @@ export class GameState {
   public scoreMultiplier = 1;
   public magnetRemainingMs = 0;
   public repelRemainingMs = 0;
+  public drunkRemainingMs = 0;
   public doubleScoreRemainingMs = 0;
   public invincibleRemainingMs = 0;
 
@@ -35,6 +36,7 @@ export class GameState {
     this.scoreMultiplier = 1;
     this.magnetRemainingMs = 0;
     this.repelRemainingMs = 0;
+    this.drunkRemainingMs = 0;
     this.doubleScoreRemainingMs = 0;
     this.invincibleRemainingMs = 0;
   }
