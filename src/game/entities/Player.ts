@@ -83,15 +83,16 @@ export class Player {
     this.brideBubbleText = scene.add
       .text(0, 0, '', {
         fontFamily: UiTheme.font,
-        fontSize: '12px',
+        fontSize: '11px',
         fontStyle: 'bold',
-        color: '#7a3050',
+        color: '#8a3d5c',
         align: 'center',
-        wordWrap: { width: 110 },
+        wordWrap: { width: 98 },
+        lineSpacing: 3,
       })
       .setOrigin(0.5);
     this.brideBubble = scene.add
-      .container(-this.spriteWidth * 0.28, -this.spriteHeight * 0.62, [
+      .container(-this.spriteWidth * 0.48, -this.spriteHeight * 0.76, [
         this.brideBubbleBg,
         this.brideBubbleText,
       ])
@@ -102,15 +103,16 @@ export class Player {
     this.groomBubbleText = scene.add
       .text(0, 0, '', {
         fontFamily: UiTheme.font,
-        fontSize: '12px',
+        fontSize: '11px',
         fontStyle: 'bold',
-        color: '#3d4a6b',
+        color: '#3f4f72',
         align: 'center',
-        wordWrap: { width: 110 },
+        wordWrap: { width: 98 },
+        lineSpacing: 3,
       })
       .setOrigin(0.5);
     this.groomBubble = scene.add
-      .container(this.spriteWidth * 0.28, -this.spriteHeight * 0.62, [
+      .container(this.spriteWidth * 0.48, -this.spriteHeight * 0.76, [
         this.groomBubbleBg,
         this.groomBubbleText,
       ])
@@ -244,6 +246,7 @@ export class Player {
   }
 
   private onItemCollected = (payload: {
+    id: string;
     category: 'good' | 'bad' | 'bonus';
     special?: boolean;
   }): void => {
@@ -266,7 +269,11 @@ export class Player {
       }
     }
 
-    const lines = pickCoupleLines(localeStore.getLocale(), mood);
+    const lines = pickCoupleLines(
+      localeStore.getLocale(),
+      mood,
+      payload.id,
+    );
     this.showReaction(kind, lines.bride, lines.groom);
   };
 
@@ -302,18 +309,14 @@ export class Player {
       this.brideBubbleBg,
       this.brideBubbleText,
       `${COUPLE_NAMES.bride}\n${brideLine}`,
-      0xffe4ef,
-      0xff8fab,
-      -this.spriteWidth * 0.28,
+      'bride',
     );
     this.paintBubble(
       this.groomBubble,
       this.groomBubbleBg,
       this.groomBubbleText,
       `${COUPLE_NAMES.groom}\n${groomLine}`,
-      0xe8f0ff,
-      0x7aa2e3,
-      this.spriteWidth * 0.28,
+      'groom',
     );
 
     this.reactionTimer?.remove(false);
@@ -327,54 +330,127 @@ export class Player {
     bg: Phaser.GameObjects.Graphics,
     text: Phaser.GameObjects.Text,
     line: string,
-    fill: number,
-    stroke: number,
-    x: number,
+    side: 'bride' | 'groom',
   ): void {
     this.scene.tweens.killTweensOf(root);
     text.setText(line);
-    const padX = 9;
-    const padY = 6;
-    const tw = Math.min(110, Math.max(42, text.width));
-    const th = Math.max(24, text.height);
+
+    const isBride = side === 'bride';
+    const fill = isBride ? 0xfff7fa : 0xf6f9ff;
+    const stroke = isBride ? 0xff9db8 : 0x8eb6ea;
+    const soft = isBride ? 0xffd6e4 : 0xd7e6fb;
+    const accent = isBride ? 0xff6b9a : 0x6a9adf;
+
+    const padX = 12;
+    const padY = 9;
+    const tw = Math.min(98, Math.max(52, text.width));
+    const th = Math.max(28, text.height);
     const boxW = tw + padX * 2;
     const boxH = th + padY * 2;
-    text.setPosition(0, -4);
+    const radius = 14;
+    text.setPosition(0, -2);
+
     bg.clear();
-    bg.fillStyle(0x000000, 0.1);
-    bg.fillRoundedRect(-boxW / 2 + 1, -boxH / 2 + 2, boxW, boxH, 10);
-    bg.fillStyle(fill, 0.96);
+
+    // Soft shadow
+    bg.fillStyle(0x5c3d2e, 0.1);
+    bg.fillRoundedRect(-boxW / 2 + 2, -boxH / 2 + 3, boxW, boxH, radius);
+
+    // Outer pastel ring
+    bg.fillStyle(soft, 1);
+    bg.fillRoundedRect(-boxW / 2 - 2, -boxH / 2 - 2, boxW + 4, boxH + 4, radius + 2);
+
+    // Main cream card
+    bg.fillStyle(fill, 0.98);
     bg.lineStyle(2, stroke, 1);
-    bg.fillRoundedRect(-boxW / 2, -boxH / 2, boxW, boxH, 10);
-    bg.strokeRoundedRect(-boxW / 2, -boxH / 2, boxW, boxH, 10);
-    // Pointer down toward couple
-    bg.fillStyle(fill, 0.96);
+    bg.fillRoundedRect(-boxW / 2, -boxH / 2, boxW, boxH, radius);
+    bg.strokeRoundedRect(-boxW / 2, -boxH / 2, boxW, boxH, radius);
+
+    // Inner highlight
+    bg.lineStyle(1.5, 0xffffff, 0.55);
+    bg.strokeRoundedRect(
+      -boxW / 2 + 2.5,
+      -boxH / 2 + 2.5,
+      boxW - 5,
+      boxH - 5,
+      radius - 3,
+    );
+
+    // Cute accent: heart (bride) / spark (groom) at top
+    if (isBride) {
+      this.drawMiniHeart(bg, boxW / 2 - 10, -boxH / 2 + 2, accent);
+    } else {
+      this.drawMiniSpark(bg, -boxW / 2 + 10, -boxH / 2 + 3, accent);
+    }
+
+    // Centered tip pointing down toward the couple
+    const tipY = boxH / 2;
+    bg.fillStyle(fill, 0.98);
     bg.beginPath();
-    bg.moveTo(-6, boxH / 2 - 1);
-    bg.lineTo(0, boxH / 2 + 7);
-    bg.lineTo(6, boxH / 2 - 1);
+    bg.moveTo(-7, tipY - 1);
+    bg.lineTo(0, tipY + 9);
+    bg.lineTo(7, tipY - 1);
     bg.closePath();
     bg.fillPath();
     bg.lineStyle(2, stroke, 1);
     bg.beginPath();
-    bg.moveTo(-6, boxH / 2 - 1);
-    bg.lineTo(0, boxH / 2 + 7);
-    bg.lineTo(6, boxH / 2 - 1);
+    bg.moveTo(-7, tipY - 1);
+    bg.lineTo(0, tipY + 9);
+    bg.lineTo(7, tipY - 1);
+    bg.strokePath();
+    // Cover tip top seam
+    bg.lineStyle(2, fill, 1);
+    bg.beginPath();
+    bg.moveTo(-5, tipY - 1);
+    bg.lineTo(5, tipY - 1);
     bg.strokePath();
 
-    root
-      .setPosition(x, -this.spriteHeight * 0.72)
-      .setVisible(true)
-      .setAlpha(0)
-      .setScale(0.7);
+    const x = isBride ? -this.spriteWidth * 0.48 : this.spriteWidth * 0.48;
+    const yBase = -this.spriteHeight * 0.76;
+    const yPop = -this.spriteHeight * 0.82;
+
+    root.setPosition(x, yBase).setVisible(true).setAlpha(0).setScale(0.78);
     this.scene.tweens.add({
       targets: root,
       alpha: 1,
       scale: 1,
-      y: -this.spriteHeight * 0.78,
-      duration: 220,
+      y: yPop,
+      duration: 240,
       ease: 'Back.Out',
     });
+  }
+
+  private drawMiniHeart(
+    g: Phaser.GameObjects.Graphics,
+    x: number,
+    y: number,
+    color: number,
+  ): void {
+    const s = 3.2;
+    g.fillStyle(color, 1);
+    g.beginPath();
+    g.moveTo(x, y + s * 0.35);
+    g.lineTo(x - s, y - s * 0.35);
+    g.lineTo(x - s * 0.35, y - s);
+    g.lineTo(x, y - s * 0.55);
+    g.lineTo(x + s * 0.35, y - s);
+    g.lineTo(x + s, y - s * 0.35);
+    g.closePath();
+    g.fillPath();
+    g.fillCircle(x - s * 0.45, y - s * 0.45, s * 0.55);
+    g.fillCircle(x + s * 0.45, y - s * 0.45, s * 0.55);
+  }
+
+  private drawMiniSpark(
+    g: Phaser.GameObjects.Graphics,
+    x: number,
+    y: number,
+    color: number,
+  ): void {
+    g.fillStyle(color, 1);
+    g.fillCircle(x, y, 2.2);
+    g.fillRect(x - 0.7, y - 5, 1.4, 10);
+    g.fillRect(x - 5, y - 0.7, 10, 1.4);
   }
 
   private clearReaction(): void {
@@ -388,7 +464,7 @@ export class Player {
         targets: bubble,
         alpha: 0,
         scale: 0.86,
-        y: -this.spriteHeight * 0.7,
+        y: -this.spriteHeight * 0.76,
         duration: 180,
         ease: 'Sine.In',
         onComplete: () => {
