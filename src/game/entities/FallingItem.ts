@@ -309,12 +309,9 @@ export class FallingItem {
       this.mode = 'bonus';
       this.borderColor = ItemBorder.bonus;
       this.secondaryColor = ItemBorder.bonusSecondary;
-      this.sparkleCount = 4;
+      this.sparkleCount = 6;
       this.sprite.clearTint();
-      this.glow.setFillStyle(this.borderColor, 0.3);
-      this.ringOuter.setStrokeStyle(6, this.borderColor, 0.55);
-      this.ringInner.setStrokeStyle(3.5, 0xffffff, 0.9);
-      this.showSparkles(4);
+      this.showSparkles(6);
       return;
     }
 
@@ -330,10 +327,6 @@ export class FallingItem {
       this.warning.setVisible(true);
       this.warning.setStroke(special ? '#8b0000' : '#e63946', 4);
       this.hideSparkles();
-      // Single outer ring is enough for danger readability.
-      this.ringInner.setVisible(false);
-      this.glow.setFillStyle(this.secondaryColor, special ? 0.34 : 0.28);
-      this.ringOuter.setStrokeStyle(special ? 9 : 7, this.borderColor, 0.55);
       return;
     }
 
@@ -342,34 +335,23 @@ export class FallingItem {
     this.secondaryColor = this.borderColor;
     this.sparkleCount = this.sparklesForRarity(definition.rarity);
     this.sprite.clearTint();
-    // Soft glow only for high rarity; common/rare use a thin ring.
-    if (definition.rarity === 'common' || definition.rarity === 'rare') {
-      this.glow.setVisible(false);
-      this.ringOuter.setVisible(true).setStrokeStyle(4, this.borderColor, 0.4);
-      this.ringInner.setVisible(false);
-    } else {
-      this.glow.setFillStyle(this.borderColor, 0.18);
-      this.ringOuter.setStrokeStyle(5, this.borderColor, 0.3);
-      this.ringInner.setStrokeStyle(2.5, this.borderColor, 0.9);
-    }
     this.showSparkles(this.sparkleCount);
   }
 
   private sparklesForRarity(rarity: ItemRarity): number {
-    // Fewer arcs = less overdraw; rarer items still sparkle more.
     switch (rarity) {
       case 'common':
-        return 0;
-      case 'rare':
-        return 1;
-      case 'epic':
         return 2;
-      case 'legendary':
+      case 'rare':
         return 3;
-      case 'mythic':
+      case 'epic':
         return 4;
+      case 'legendary':
+        return 5;
+      case 'mythic':
+        return 6;
       default:
-        return 0;
+        return 2;
     }
   }
 
@@ -387,55 +369,49 @@ export class FallingItem {
 
   private updateBadFx(): void {
     const special = this.mode === 'specialBad';
-    // Update every other visual frame to cut style thrash.
-    if ((this.pulseMs / 16 | 0) % 2 === 1) {
-      this.container.x =
-        this.baseX + Math.sin(this.pulseMs / 40) * (special ? 3 : 2.2);
-      return;
-    }
-
     const beat = Math.sin(this.pulseMs / (special ? 70 : 90));
     const pulse = 1 + beat * (special ? 0.22 : 0.18);
     const glowAlpha = (special ? 0.34 : 0.28) + beat * 0.2;
+    const ringAlpha = 0.75 + beat * 0.25;
+    const outerW = special ? 9 : 7;
+    const innerW = special ? 5.5 : 4;
 
     this.glow
       .setFillStyle(this.secondaryColor, glowAlpha)
       .setScale(pulse * (special ? 1.22 : 1.15));
     this.ringOuter
       .setScale(pulse)
-      .setAlpha(0.45 + beat * 0.2);
+      .setStrokeStyle(outerW, this.borderColor, 0.45 + beat * 0.2);
+    this.ringInner
+      .setScale(pulse)
+      .setStrokeStyle(innerW, this.borderColor, ringAlpha);
 
-    this.container.x = this.baseX + Math.sin(this.pulseMs / 40) * (special ? 3 : 2.2);
+    // Danger shake — keeps center feel but reads as urgent.
+    this.container.x =
+      this.baseX + Math.sin(this.pulseMs / 40) * (special ? 3 : 2.2);
     this.warning.setScale(1 + beat * 0.15).setAlpha(0.75 + beat * 0.25);
     this.sprite.setAngle(Math.sin(this.pulseMs / 50) * (special ? 6 : 4));
   }
 
   private updateGoodFx(): void {
-    this.container.x = this.baseX;
-    this.sprite.setAngle(0);
-
-    // Common/rare: static ring scale only every ~3 frames.
-    if (this.sparkleCount === 0) {
-      if ((this.pulseMs / 16 | 0) % 3 === 0) {
-        const beat = Math.sin(this.pulseMs / 220);
-        this.ringOuter.setScale(1 + beat * 0.04).setAlpha(0.35 + beat * 0.08);
-      }
-      return;
-    }
-
     const beat = Math.sin(this.pulseMs / 180);
     const pulse = 1 + beat * 0.06;
     const glowAlpha = 0.14 + beat * 0.08;
 
+    this.container.x = this.baseX;
+    this.sprite.setAngle(0);
+
     this.glow
       .setFillStyle(this.borderColor, glowAlpha)
       .setScale(pulse * 1.2);
-    this.ringOuter.setScale(pulse).setAlpha(0.25 + beat * 0.1);
-    this.ringInner.setScale(pulse).setAlpha(0.85 + beat * 0.1);
+    this.ringOuter
+      .setScale(pulse)
+      .setStrokeStyle(5, this.borderColor, 0.25 + beat * 0.1);
+    this.ringInner
+      .setScale(pulse)
+      .setStrokeStyle(2.5, this.borderColor, 0.85 + beat * 0.1);
 
-    if ((this.pulseMs / 16 | 0) % 2 === 0) {
-      this.updateOrbitSparkles(this.pulseMs / 500, this.size * 0.48, 1);
-    }
+    this.updateOrbitSparkles(this.pulseMs / 500, this.size * 0.48, 1);
   }
 
   private updateBonusFx(): void {
@@ -454,16 +430,14 @@ export class FallingItem {
       .setScale(pulse * 1.35);
     this.ringOuter
       .setScale(pulse * 1.08)
-      .setAlpha(0.55)
+      .setStrokeStyle(6, color, 0.55)
       .setAngle(this.pulseMs * 0.12);
     this.ringInner
       .setScale(pulse)
-      .setAlpha(0.9)
+      .setStrokeStyle(3.5, 0xffffff, 0.9)
       .setAngle(-this.pulseMs * 0.18);
 
-    if ((this.pulseMs / 16 | 0) % 2 === 0) {
-      this.updateOrbitSparkles(this.pulseMs / 280, this.size * 0.58, 1.35);
-    }
+    this.updateOrbitSparkles(this.pulseMs / 280, this.size * 0.58, 1.35);
   }
 
   private updateOrbitSparkles(
@@ -473,7 +447,7 @@ export class FallingItem {
   ): void {
     for (let i = 0; i < this.sparkleCount; i += 1) {
       const sparkle = this.sparkles[i];
-      if (sparkle === undefined || !sparkle.visible) {
+      if (sparkle === undefined) {
         continue;
       }
 
@@ -481,7 +455,10 @@ export class FallingItem {
       const twinkle = 0.55 + Math.sin(this.pulseMs / 100 + i) * 0.45;
       sparkle
         .setPosition(Math.cos(theta) * radius, Math.sin(theta) * radius)
-        .setAlpha(twinkle)
+        .setFillStyle(
+          i % 2 === 0 ? this.borderColor : 0xffffff,
+          twinkle,
+        )
         .setScale(sizeScale * (0.7 + twinkle * 0.5));
     }
   }
