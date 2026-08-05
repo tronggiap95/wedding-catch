@@ -12,8 +12,15 @@ import {
 import { createPrimaryButton } from './UiFactory';
 import { UiTheme } from './UiTheme';
 
+/** Local Y of the name field inside the modal root (must match fieldBg). */
+const FIELD_LOCAL_Y = 12;
+const FIELD_W = 240;
+const FIELD_H = 42;
+
 /**
  * Cute name + gender entry overlay (Phaser panel + DOM input).
+ * DOM input is pinned to the Phaser field and re-laid out against
+ * visualViewport so iOS Safari keyboard does not hide caret/text.
  */
 export class GuestNameModal {
   private readonly scene: Phaser.Scene;
@@ -23,9 +30,12 @@ export class GuestNameModal {
   private readonly maleChip: Phaser.GameObjects.Container;
   private readonly femaleChip: Phaser.GameObjects.Container;
   private readonly inputEl: HTMLInputElement;
+  private readonly inputHost: HTMLElement;
   private readonly onDone: () => void;
   private open = false;
   private gender: GuestGender = 'male';
+  private focusTimer: number | null = null;
+  private relayoutTimers: number[] = [];
 
   public constructor(
     scene: Phaser.Scene,
@@ -79,7 +89,7 @@ export class GuestNameModal {
     );
 
     const fieldBg = scene.add
-      .rectangle(0, 12, 240, 42, 0xfff8f0, 1)
+      .rectangle(0, FIELD_LOCAL_Y, FIELD_W, FIELD_H, 0xfff8f0, 1)
       .setStrokeStyle(3, 0xe8b86d);
 
     const save = createPrimaryButton(
@@ -119,14 +129,27 @@ export class GuestNameModal {
       .setVisible(false)
       .setAlpha(0);
 
+    // Host next to the Phaser canvas so absolute coords track the game column
+    // (body-fixed jumps under the iOS keyboard / visualViewport pan).
+    const canvas = scene.game.canvas;
+    this.inputHost = canvas.parentElement ?? document.body;
+    if (getComputedStyle(this.inputHost).position === 'static') {
+      this.inputHost.style.position = 'relative';
+    }
+
     this.inputEl = document.createElement('input');
     this.inputEl.type = 'text';
     this.inputEl.maxLength = GUEST_NAME_MAX_LEN;
     this.inputEl.placeholder = t('guest.namePlaceholder');
     this.inputEl.autocomplete = 'off';
+    this.inputEl.autocapitalize = 'words';
+    this.inputEl.spellcheck = false;
     this.inputEl.setAttribute('enterkeyhint', 'done');
+    this.inputEl.setAttribute('autocorrect', 'off');
+    this.inputEl.setAttribute('inputmode', 'text');
+    // 16px min avoids iOS focus zoom; line-height = height keeps caret centered.
     Object.assign(this.inputEl.style, {
-      position: 'fixed',
+      position: 'absolute',
       zIndex: '40',
       display: 'none',
       border: 'none',
@@ -136,12 +159,20 @@ export class GuestNameModal {
       fontFamily: UiTheme.font,
       fontWeight: '700',
       fontSize: '16px',
+      lineHeight: `${FIELD_H}px`,
       color: UiTheme.ink,
-      padding: '0',
+      padding: '0 10px',
       margin: '0',
       boxSizing: 'border-box',
+      WebkitAppearance: 'none',
+      appearance: 'none',
+      transform: 'translateZ(0)',
+      WebkitUserSelect: 'text',
+      userSelect: 'text',
+      // Prevent iOS from scrolling the focused caret outside the field box.
+      overflow: 'hidden',
     } as CSSStyleDeclaration);
-    document.body.appendChild(this.inputEl);
+    this.inputHost.appendChild(this.inputEl);
 
     save.on('pointerup', () => {
       this.commit(true);
@@ -157,6 +188,8 @@ export class GuestNameModal {
         this.commit(true);
       }
     });
+    this.inputEl.addEventListener('focus', this.onInputFocus);
+    this.inputEl.addEventListener('blur', this.onInputBlur);
 
     scene.scale.on('resize', this.layoutInput, this);
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -177,9 +210,7 @@ export class GuestNameModal {
     this.open = true;
     this.gender = guestNameStore.getGender();
     this.refreshGenderChips();
-    const { width, height } = this.scene.scale;
-    this.dim.setSize(width, height);
-    this.root.setPosition(width / 2, height / 2).setVisible(true).setAlpha(0);
+    this.root.setVisible(true).setAlpha(0);
     this.scene.tweens.add({
       targets: this.root,
       alpha: 1,
@@ -193,15 +224,32 @@ export class GuestNameModal {
         : '';
     this.inputEl.placeholder = t('guest.namePlaceholder');
     this.inputEl.style.display = 'block';
+    this.bindViewportListeners(true);
     this.layoutInput();
-    window.setTimeout(() => {
-      this.inputEl.focus();
-      this.inputEl.select();
-    }, 80);
+    // Delay focus so first layout settles before Safari opens the keyboard.
+    this.clearFocusTimer();
+    this.focusTimer = window.setTimeout(() => {
+      this.focusTimer = null;
+      this.layoutInput();
+      try {
+        this.inputEl.focus({ preventScroll: true });
+      } catch {
+        this.inputEl.focus();
+      }
+      // Keyboard / visualViewport update after animation frames on iOS.
+      this.scheduleRelayout(80);
+      this.scheduleRelayout(200);
+      this.scheduleRelayout(400);
+    }, 120);
   }
 
   public destroy(): void {
+    this.clearFocusTimer();
+    this.clearRelayoutTimers();
+    this.bindViewportListeners(false);
     this.scene.scale.off('resize', this.layoutInput, this);
+    this.inputEl.removeEventListener('focus', this.onInputFocus);
+    this.inputEl.removeEventListener('blur', this.onInputBlur);
     this.scene.tweens.killTweensOf(this.root);
     this.inputEl.remove();
     this.root.destroy(true);
@@ -265,8 +313,15 @@ export class GuestNameModal {
       return;
     }
     this.open = false;
+    this.clearFocusTimer();
+    this.clearRelayoutTimers();
+    this.bindViewportListeners(false);
     this.inputEl.blur();
     this.inputEl.style.display = 'none';
+    // Restore centered panel for next open.
+    const { width, height } = this.scene.scale;
+    this.root.setPosition(width / 2, height / 2);
+    this.dim.setPosition(0, 0);
     this.scene.tweens.killTweensOf(this.root);
     this.scene.tweens.add({
       targets: this.root,
@@ -280,24 +335,113 @@ export class GuestNameModal {
     });
   }
 
+  private onInputFocus = (): void => {
+    this.layoutInput();
+    window.requestAnimationFrame(() => this.layoutInput());
+    this.scheduleRelayout(100);
+    this.scheduleRelayout(280);
+  };
+
+  private onInputBlur = (): void => {
+    this.layoutInput();
+  };
+
+  private clearFocusTimer(): void {
+    if (this.focusTimer !== null) {
+      window.clearTimeout(this.focusTimer);
+      this.focusTimer = null;
+    }
+  }
+
+  private scheduleRelayout(delayMs: number): void {
+    const id = window.setTimeout(() => {
+      this.relayoutTimers = this.relayoutTimers.filter((t) => t !== id);
+      this.layoutInput();
+    }, delayMs);
+    this.relayoutTimers.push(id);
+  }
+
+  private clearRelayoutTimers(): void {
+    for (const id of this.relayoutTimers) {
+      window.clearTimeout(id);
+    }
+    this.relayoutTimers = [];
+  }
+
+  private bindViewportListeners(active: boolean): void {
+    const vv = window.visualViewport;
+    if (active) {
+      vv?.addEventListener('resize', this.layoutInput);
+      vv?.addEventListener('scroll', this.layoutInput);
+      window.addEventListener('resize', this.layoutInput);
+    } else {
+      vv?.removeEventListener('resize', this.layoutInput);
+      vv?.removeEventListener('scroll', this.layoutInput);
+      window.removeEventListener('resize', this.layoutInput);
+    }
+  }
+
+  /**
+   * Place the modal + DOM field inside the visible area above the keyboard.
+   * Uses host-relative absolute positioning (stable on iOS Safari).
+   */
   private layoutInput = (): void => {
     if (!this.open) {
       return;
     }
     const { width, height } = this.scene.scale;
-    this.dim.setSize(width, height);
-    this.root.setPosition(width / 2, height / 2);
-
     const canvas = this.scene.game.canvas;
-    const rect = canvas.getBoundingClientRect();
-    const fieldW = Math.min(220, rect.width * 0.62);
-    const fieldH = 36;
-    const cx = rect.left + rect.width / 2;
-    // Match fieldBg local y=12 inside centered modal.
-    const cy = rect.top + rect.height / 2 + 12;
-    this.inputEl.style.width = `${fieldW}px`;
-    this.inputEl.style.height = `${fieldH}px`;
-    this.inputEl.style.left = `${cx - fieldW / 2}px`;
-    this.inputEl.style.top = `${cy - fieldH / 2}px`;
+    const canvasRect = canvas.getBoundingClientRect();
+    if (canvasRect.width <= 0 || canvasRect.height <= 0) {
+      return;
+    }
+
+    const hostRect = this.inputHost.getBoundingClientRect();
+    // getBoundingClientRect is visual-viewport relative — do not mix with offsetTop.
+    const viewH = window.visualViewport?.height ?? window.innerHeight;
+    const viewW = window.visualViewport?.width ?? window.innerWidth;
+
+    const clipTop = Math.max(canvasRect.top, 0);
+    const clipBottom = Math.min(canvasRect.bottom, viewH);
+    const clipLeft = Math.max(canvasRect.left, 0);
+    const clipRight = Math.min(canvasRect.right, viewW);
+    const clipH = Math.max(1, clipBottom - clipTop);
+    const clipW = Math.max(1, clipRight - clipLeft);
+
+    // Only lift the panel when the keyboard has shrunk the visual viewport.
+    const layoutH = window.innerHeight;
+    const keyboardOpen = viewH < layoutH * 0.82;
+
+    let rootY = height / 2;
+    if (keyboardOpen) {
+      const fieldCyVisible = clipTop + Math.min(clipH * 0.36, 150);
+      rootY =
+        ((fieldCyVisible - canvasRect.top) / canvasRect.height) * height -
+        FIELD_LOCAL_Y;
+      rootY = Math.min(height * 0.52, Math.max(height * 0.22, rootY));
+    }
+
+    this.root.setPosition(width / 2, rootY);
+    // Keep dim covering the full canvas while the panel is shifted up.
+    this.dim.setPosition(0, height / 2 - rootY);
+    this.dim.setSize(width, height);
+
+    const fieldGameY = rootY + FIELD_LOCAL_Y;
+    const fieldCssCx = (clipLeft + clipRight) / 2;
+    const fieldCssCy =
+      canvasRect.top + (fieldGameY / height) * canvasRect.height;
+    const fieldCssW = Math.min(
+      FIELD_W * (canvasRect.width / width),
+      clipW * 0.72,
+    );
+    const fieldCssH = Math.max(36, FIELD_H * (canvasRect.height / height));
+
+    const style = this.inputEl.style;
+    style.width = `${fieldCssW}px`;
+    style.height = `${fieldCssH}px`;
+    style.lineHeight = `${fieldCssH}px`;
+    // Absolute coords relative to game host — both rects share visual space.
+    style.left = `${fieldCssCx - fieldCssW / 2 - hostRect.left}px`;
+    style.top = `${fieldCssCy - fieldCssH / 2 - hostRect.top}px`;
   };
 }
