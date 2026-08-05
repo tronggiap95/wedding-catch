@@ -39,8 +39,8 @@ export function getDisplayPixelRatio(): number {
 }
 
 /**
- * Integer DPR for camera zoom (non-integer zoom softens WebGL edges).
- * 1× / 2× / 3× only.
+ * Integer DPR for canvas buffer (1× / 2× only).
+ * Cap at 2× — 3× nearly 2.25× more GPU fill with little visible gain on speed.
  */
 export function getRenderPixelRatio(): number {
   if (typeof window === 'undefined') {
@@ -48,9 +48,6 @@ export function getRenderPixelRatio(): number {
   }
 
   const raw = window.devicePixelRatio || 1;
-  if (raw >= 2.5) {
-    return 3;
-  }
   if (raw >= 1.5) {
     return 2;
   }

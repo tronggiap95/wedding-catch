@@ -30,7 +30,8 @@ export class StageBackground {
     this.top = scene.add
       .image(cx, cy, initialKey)
       .setDepth(Depth.Background)
-      .setAlpha(0);
+      .setAlpha(0)
+      .setVisible(false);
     this.fitCover(this.top);
 
     // Soft cream wash keeps falling items readable on busy art.
@@ -89,7 +90,7 @@ export class StageBackground {
     if (this.currentKey === null || this.currentKey === key) {
       this.bottom.setTexture(key).setAlpha(1);
       this.fitCover(this.bottom);
-      this.top.setAlpha(0);
+      this.top.setVisible(false).setAlpha(0);
       this.currentKey = key;
       this.transitioning = false;
       return;
@@ -101,7 +102,7 @@ export class StageBackground {
     this.bottom.setTexture(this.currentKey).setAlpha(1);
     this.fitCover(this.bottom);
 
-    this.top.setTexture(key).setAlpha(0);
+    this.top.setTexture(key).setAlpha(0).setVisible(true);
     this.fitCover(this.top);
 
     this.scene.tweens.add({
@@ -112,7 +113,7 @@ export class StageBackground {
       onComplete: () => {
         this.bottom.setTexture(key).setAlpha(1);
         this.fitCover(this.bottom);
-        this.top.setAlpha(0);
+        this.top.setVisible(false).setAlpha(0);
         this.currentKey = key;
         this.transitioning = false;
       },

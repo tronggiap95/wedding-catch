@@ -83,6 +83,7 @@ export class HUDManager {
   private lastBonusKey = '';
   private lastDebuffKey = '';
   private heartBobMs = 0;
+  private bonusRefreshMs = 0;
 
   public constructor(
     scene: Phaser.Scene,
@@ -290,9 +291,14 @@ export class HUDManager {
     this.debuffText.destroy();
   }
 
-  public tickBonuses(): void {
-    this.refreshBonuses();
-    this.refreshDebuffs();
+  public tickBonuses(deltaMs = 16): void {
+    this.bonusRefreshMs += deltaMs;
+    // Bonus timers display whole seconds — 4 Hz is enough UI precision.
+    if (this.bonusRefreshMs >= 250) {
+      this.bonusRefreshMs = 0;
+      this.refreshBonuses();
+      this.refreshDebuffs();
+    }
     this.tickHeartBob();
   }
 

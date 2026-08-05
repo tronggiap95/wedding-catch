@@ -13,6 +13,8 @@ export class StageManager {
   private readonly state: GameState;
   private readonly config: ConfigStore;
   private stageElapsedMs = 0;
+  private cachedStageId = -1;
+  private cachedCurrent: StageDefinition | null = null;
 
   public constructor(state: GameState, config: ConfigStore) {
     this.state = state;
@@ -20,54 +22,69 @@ export class StageManager {
   }
 
   public get current(): StageDefinition {
+    if (
+      this.cachedCurrent !== null &&
+      this.cachedStageId === this.state.stage
+    ) {
+      return this.cachedCurrent;
+    }
+
     const stages = this.config.stages.stages;
     const namedCount = stages.length;
+    let stage: StageDefinition;
 
     if (this.state.stage <= namedCount) {
       const base = stages[this.state.stage - 1] ?? stages[0]!;
-      return {
+      stage = {
         ...base,
         name: localeStore.stageName(base.id, namedCount),
         description: localeStore.stageDescription(base.id, namedCount),
       };
+    } else {
+      const base = stages[namedCount - 1]!;
+      const ramp = this.state.stage - namedCount;
+      const endless = this.config.stages.endless;
+
+      stage = {
+        id: this.state.stage,
+        name: localeStore.stageName(this.state.stage, namedCount),
+        description: localeStore.stageDescription(this.state.stage, namedCount),
+        durationMs: base.durationMs,
+        spawnInterval: Math.max(
+          endless.minSpawnInterval,
+          Math.round(
+            base.spawnInterval * Math.pow(endless.spawnIntervalMul, ramp),
+          ),
+        ),
+        bonusInterval: Math.max(
+          8000,
+          Math.round(base.bonusInterval - ramp * 200),
+        ),
+        goodChance: Math.max(
+          endless.minGoodChance,
+          base.goodChance - ramp * endless.goodChanceStep,
+        ),
+        fallSpeed: Math.min(
+          endless.maxFallSpeed,
+          Math.round(base.fallSpeed * Math.pow(endless.fallSpeedMul, ramp)),
+        ),
+        maxConcurrent: Math.min(
+          endless.maxConcurrent,
+          base.maxConcurrent + Math.floor(ramp / 2),
+        ),
+        background: base.background,
+      };
     }
 
-    const base = stages[namedCount - 1]!;
-    const ramp = this.state.stage - namedCount;
-    const endless = this.config.stages.endless;
-
-    return {
-      id: this.state.stage,
-      name: localeStore.stageName(this.state.stage, namedCount),
-      description: localeStore.stageDescription(this.state.stage, namedCount),
-      durationMs: base.durationMs,
-      spawnInterval: Math.max(
-        endless.minSpawnInterval,
-        Math.round(base.spawnInterval * Math.pow(endless.spawnIntervalMul, ramp)),
-      ),
-      bonusInterval: Math.max(
-        8000,
-        Math.round(base.bonusInterval - ramp * 200),
-      ),
-      goodChance: Math.max(
-        endless.minGoodChance,
-        base.goodChance - ramp * endless.goodChanceStep,
-      ),
-      fallSpeed: Math.min(
-        endless.maxFallSpeed,
-        Math.round(base.fallSpeed * Math.pow(endless.fallSpeedMul, ramp)),
-      ),
-      maxConcurrent: Math.min(
-        endless.maxConcurrent,
-        base.maxConcurrent + Math.floor(ramp / 2),
-      ),
-      background: base.background,
-    };
+    this.cachedStageId = this.state.stage;
+    this.cachedCurrent = stage;
+    return stage;
   }
 
   public start(): void {
     this.stageElapsedMs = 0;
     this.state.stage = 1;
+    this.invalidateCache();
     this.emitStage();
   }
 
@@ -82,8 +99,14 @@ export class StageManager {
     if (this.stageElapsedMs >= stage.durationMs) {
       this.stageElapsedMs = 0;
       this.state.stage += 1;
+      this.invalidateCache();
       this.emitStage();
     }
+  }
+
+  private invalidateCache(): void {
+    this.cachedStageId = -1;
+    this.cachedCurrent = null;
   }
 
   private emitStage(): void {

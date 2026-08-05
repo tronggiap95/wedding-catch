@@ -38,6 +38,16 @@ export class PlayScene extends Phaser.Scene {
   private stageBackground!: StageBackground;
   private spaceKey: Phaser.Input.Keyboard.Key | undefined;
   private ended = false;
+  private lastInvincible = false;
+  private lastDrunk = false;
+  private lastSpecialBad = false;
+  private readonly magnetField = {
+    x: 0,
+    y: 0,
+    radius: 0,
+    magnetStrength: 0,
+    repelStrength: 0,
+  };
 
   public constructor() {
     super({ key: SceneKey.Play });
@@ -50,6 +60,9 @@ export class PlayScene extends Phaser.Scene {
     this.audio = this.registry.get(RegistryKey.AudioManager) as AudioManager;
 
     this.state.reset();
+    this.lastInvincible = false;
+    this.lastDrunk = false;
+    this.lastSpecialBad = false;
 
     const initialBg =
       this.config.stages.stages[0]?.background ?? TextureKey.BgStage1;
@@ -126,39 +139,54 @@ export class PlayScene extends Phaser.Scene {
     }
 
     this.throwers.update(delta);
-    this.player.setInvincible(this.state.invincibleRemainingMs > 0);
-    this.player.setDrunk(this.state.drunkRemainingMs > 0);
-    this.player.setSpecialBad(
-      this.state.repelRemainingMs > 0 || this.state.drunkRemainingMs > 0,
-    );
-    this.player.update(delta);
-    this.spawnManager.update(delta, this.stageManager.current);
 
-    const magnet =
-      this.state.magnetRemainingMs > 0
-        ? {
-            x: this.player.x,
-            y: this.player.y,
-            radius: Math.min(this.scale.width, this.scale.height) * 0.42,
-            magnetStrength: 4.5,
-            repelStrength: 0,
-          }
-        : this.state.repelRemainingMs > 0
-          ? {
-              x: this.player.x,
-              y: this.player.y,
-              radius: Math.min(this.scale.width, this.scale.height) * 0.48,
-              magnetStrength: 0,
-              repelStrength: 5.2,
-            }
-          : null;
-    this.itemManager.update(delta, magnet);
+    // Edge-trigger status flags only.
+    const inv = this.state.invincibleRemainingMs > 0;
+    const drunk = this.state.drunkRemainingMs > 0;
+    const specialBad =
+      this.state.repelRemainingMs > 0 || this.state.drunkRemainingMs > 0;
+    if (inv !== this.lastInvincible) {
+      this.player.setInvincible(inv);
+      this.lastInvincible = inv;
+    }
+    if (drunk !== this.lastDrunk) {
+      this.player.setDrunk(drunk);
+      this.lastDrunk = drunk;
+    }
+    if (specialBad !== this.lastSpecialBad) {
+      this.player.setSpecialBad(specialBad);
+      this.lastSpecialBad = specialBad;
+    }
+
+    this.player.update(delta);
+
+    const stage = this.stageManager.current;
+    this.spawnManager.update(delta, stage);
+
+    const field = this.magnetField;
+    if (this.state.magnetRemainingMs > 0) {
+      field.x = this.player.x;
+      field.y = this.player.y;
+      field.radius = Math.min(this.scale.width, this.scale.height) * 0.42;
+      field.magnetStrength = 4.5;
+      field.repelStrength = 0;
+      this.itemManager.update(delta, field);
+    } else if (this.state.repelRemainingMs > 0) {
+      field.x = this.player.x;
+      field.y = this.player.y;
+      field.radius = Math.min(this.scale.width, this.scale.height) * 0.48;
+      field.magnetStrength = 0;
+      field.repelStrength = 5.2;
+      this.itemManager.update(delta, field);
+    } else {
+      this.itemManager.update(delta, null);
+    }
 
     this.collisionManager.update();
     this.scoreManager.update(delta);
     this.scoreManager.tickTime(delta);
     this.stageManager.update(delta);
-    this.hud.tickBonuses();
+    this.hud.tickBonuses(delta);
   }
 
   private handlePauseHotkey(): void {

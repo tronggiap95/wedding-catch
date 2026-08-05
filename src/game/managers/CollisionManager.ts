@@ -18,6 +18,8 @@ export class CollisionManager {
   private readonly items: ItemManager;
   private readonly score: ScoreManager;
   private readonly player: Player;
+  private readonly playerBounds = new Phaser.Geom.Rectangle(0, 0, 0, 0);
+  private readonly itemBounds = new Phaser.Geom.Rectangle(0, 0, 0, 0);
 
   public constructor(
     scene: Phaser.Scene,
@@ -41,28 +43,31 @@ export class CollisionManager {
     }
 
     const shrink = this.config.runtime.hitboxShrink;
-    const playerBounds = new Phaser.Geom.Rectangle(
-      this.player.x - this.player.hitWidth / 2,
-      this.player.y - this.player.hitHeight / 2,
+    const halfW = this.player.hitWidth / 2;
+    const halfH = this.player.hitHeight / 2;
+    this.playerBounds.setTo(
+      this.player.x - halfW,
+      this.player.y - halfH,
       this.player.hitWidth,
       this.player.hitHeight,
     );
 
     const screenBottom =
       this.scene.scale.height + this.config.runtime.itemSize;
+    // Skip items still far above the basket (broad-phase).
+    const earlyY = this.player.y - this.player.hitHeight * 2;
 
-    const ordered = [...this.items.activeItems].sort(
-      (a, b) =>
-        Math.abs(a.y - this.player.y) - Math.abs(b.y - this.player.y),
-    );
-
-    for (const item of ordered) {
+    for (const item of this.items.activeItems) {
       if (!item.active || item.resolved || item.definition === null) {
         continue;
       }
 
-      const hit = item.getHitBounds(shrink);
-      if (Phaser.Geom.Rectangle.Overlaps(playerBounds, hit)) {
+      if (item.y < earlyY) {
+        continue;
+      }
+
+      item.writeHitBounds(shrink, this.itemBounds);
+      if (Phaser.Geom.Rectangle.Overlaps(this.playerBounds, this.itemBounds)) {
         this.resolveCollect(item);
         continue;
       }

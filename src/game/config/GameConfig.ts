@@ -26,7 +26,8 @@ export function createGameConfig(
     },
     render: {
       antialias: true,
-      antialiasGL: true,
+      // MSAA is expensive on mobile GPUs; linear filtering still smooths sprites.
+      antialiasGL: false,
       pixelArt: false,
       roundPixels: true,
       powerPreference: 'high-performance',

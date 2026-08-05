@@ -203,10 +203,15 @@ export class ScoreManager {
       return;
     }
 
+    const prevSec = Math.floor(this.state.elapsedMs / 1000);
     this.state.elapsedMs += deltaMs;
-    EventBus.emit(Events.TimeChanged, {
-      elapsedMs: this.state.elapsedMs,
-    });
+    const nextSec = Math.floor(this.state.elapsedMs / 1000);
+    // HUD only needs second resolution — skip ~59 pointless EventBus fans/frame.
+    if (nextSec !== prevSec) {
+      EventBus.emit(Events.TimeChanged, {
+        elapsedMs: this.state.elapsedMs,
+      });
+    }
   }
 
   public endGame(reason: 'strike'): void {
