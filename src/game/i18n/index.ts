@@ -32,17 +32,8 @@ function readStoredLocale(): Locale | null {
 }
 
 function detectLocale(): Locale {
-  try {
-    const lang = navigator.language.toLowerCase();
-    if (lang.startsWith('zh')) {
-      return 'zh';
-    }
-    if (lang.startsWith('en')) {
-      return 'en';
-    }
-  } catch {
-    // ignore
-  }
+  // First visit always starts in Vietnamese (wedding audience default).
+  // After the player picks a language it is remembered via localStorage.
   return 'vi';
 }
 
