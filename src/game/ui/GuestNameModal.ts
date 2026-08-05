@@ -148,30 +148,29 @@ export class GuestNameModal {
     this.inputEl.setAttribute('autocorrect', 'off');
     this.inputEl.setAttribute('inputmode', 'text');
     // 16px min avoids iOS focus zoom; line-height = height keeps caret centered.
-    Object.assign(this.inputEl.style, {
-      position: 'absolute',
-      zIndex: '40',
-      display: 'none',
-      border: 'none',
-      outline: 'none',
-      background: 'transparent',
-      textAlign: 'center',
-      fontFamily: UiTheme.font,
-      fontWeight: '700',
-      fontSize: '16px',
-      lineHeight: `${FIELD_H}px`,
-      color: UiTheme.ink,
-      padding: '0 10px',
-      margin: '0',
-      boxSizing: 'border-box',
-      WebkitAppearance: 'none',
-      appearance: 'none',
-      transform: 'translateZ(0)',
-      WebkitUserSelect: 'text',
-      userSelect: 'text',
-      // Prevent iOS from scrolling the focused caret outside the field box.
-      overflow: 'hidden',
-    } as CSSStyleDeclaration);
+    const inputStyle = this.inputEl.style;
+    inputStyle.position = 'absolute';
+    inputStyle.zIndex = '40';
+    inputStyle.display = 'none';
+    inputStyle.border = 'none';
+    inputStyle.outline = 'none';
+    inputStyle.background = 'transparent';
+    inputStyle.textAlign = 'center';
+    inputStyle.fontFamily = UiTheme.font;
+    inputStyle.fontWeight = '700';
+    inputStyle.fontSize = '16px';
+    inputStyle.lineHeight = `${FIELD_H}px`;
+    inputStyle.color = UiTheme.ink;
+    inputStyle.padding = '0 10px';
+    inputStyle.margin = '0';
+    inputStyle.boxSizing = 'border-box';
+    inputStyle.setProperty('-webkit-appearance', 'none');
+    inputStyle.appearance = 'none';
+    inputStyle.transform = 'translateZ(0)';
+    inputStyle.setProperty('-webkit-user-select', 'text');
+    inputStyle.userSelect = 'text';
+    // Prevent iOS from scrolling the focused caret outside the field box.
+    inputStyle.overflow = 'hidden';
     this.inputHost.appendChild(this.inputEl);
 
     save.on('pointerup', () => {
