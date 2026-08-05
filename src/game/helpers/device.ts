@@ -39,6 +39,25 @@ export function getDisplayPixelRatio(): number {
 }
 
 /**
+ * Integer DPR for camera zoom (non-integer zoom softens WebGL edges).
+ * 1× / 2× / 3× only.
+ */
+export function getRenderPixelRatio(): number {
+  if (typeof window === 'undefined') {
+    return 1;
+  }
+
+  const raw = window.devicePixelRatio || 1;
+  if (raw >= 2.5) {
+    return 3;
+  }
+  if (raw >= 1.5) {
+    return 2;
+  }
+  return 1;
+}
+
+/**
  * CSS size for the game parent: full height, width capped for desktop fairness.
  */
 export function getViewportCssSize(): { width: number; height: number } {

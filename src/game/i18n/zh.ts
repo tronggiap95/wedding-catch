@@ -24,6 +24,8 @@ export const zh: Dictionary = {
   'guest.nameSkip': '稍后再说',
   'guest.gender.male': '男',
   'guest.gender.female': '女',
+  'thrower.angel': '天使',
+  'thrower.devil': '恶魔',
 
   'guide.title': '游戏说明',
   'guide.line1': '• 移动新郎新娘去接礼物',

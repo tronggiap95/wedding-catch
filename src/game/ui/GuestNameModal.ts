@@ -284,6 +284,10 @@ export class GuestNameModal {
     if (!this.open) {
       return;
     }
+    const { width, height } = this.scene.scale;
+    this.dim.setSize(width, height);
+    this.root.setPosition(width / 2, height / 2);
+
     const canvas = this.scene.game.canvas;
     const rect = canvas.getBoundingClientRect();
     const fieldW = Math.min(220, rect.width * 0.62);

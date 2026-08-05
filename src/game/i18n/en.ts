@@ -25,6 +25,8 @@ export const en: Dictionary = {
   'guest.nameSkip': 'Maybe later',
   'guest.gender.male': 'Male',
   'guest.gender.female': 'Female',
+  'thrower.angel': 'Angel',
+  'thrower.devil': 'Devil',
 
   'guide.title': 'How to Play',
   'guide.line1': '• Move the bride & groom to catch gifts',

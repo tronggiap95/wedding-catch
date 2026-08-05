@@ -78,12 +78,7 @@ export class PlayScene extends Phaser.Scene {
       this.scoreManager,
       this.player,
     );
-    this.hud = new HUDManager(
-      this,
-      this.state,
-      this.config.items.comboTiers,
-      this.throwers,
-    );
+    this.hud = new HUDManager(this, this.state, this.config.items.comboTiers);
     // Pause/mute after HUD so their hit Zones sit above HUD art in the input stack.
     this.pauseMenu = new PauseMenu(this, this.audio, {
       onPauseRequest: () => this.pauseGame(),

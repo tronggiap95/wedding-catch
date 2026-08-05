@@ -25,6 +25,8 @@ export const vi: Dictionary = {
   'guest.nameSkip': 'Để sau',
   'guest.gender.male': 'Nam',
   'guest.gender.female': 'Nữ',
+  'thrower.angel': 'Thiên thần',
+  'thrower.devil': 'Ác quỷ',
 
   'guide.title': 'Hướng dẫn',
   'guide.line1': '• Di chuyển cô dâu chú rể để hứng quà',

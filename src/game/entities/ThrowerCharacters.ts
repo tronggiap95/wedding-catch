@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { Depth } from '../constants/Depth';
 import { TextureKey } from '../constants/TextureKey';
 import { pickThrowerLine } from '../data/throwerDialogue';
-import { localeStore } from '../i18n';
+import { localeStore, t } from '../i18n';
 import {
   guestNameStore,
   type GuestGender,
@@ -49,6 +49,10 @@ const SPEECH_HOLD_MS = 2400;
 const BUBBLE_MAX_WIDTH = 118;
 const SIDE_SIZE = 78;
 const GUEST_SIZE = 94;
+/** Character body Y — clear of HUD row so name tags are not covered. */
+const ROOT_Y = 132;
+/** Name tag offset above sprite center (relative to display size). */
+const NAME_TAG_OFFSET = 0.62;
 
 const ROLE_INK: Record<ThrowerRole, string> = {
   guest: '#5c3d2e',
@@ -71,22 +75,25 @@ const ROLE_STROKE: Record<ThrowerRole, number> = {
 /**
  * Top throwers: devil (bad), guest (good), angel (bonus).
  */
+interface RoleNameTag {
+  readonly root: Phaser.GameObjects.Container;
+  readonly bg: Phaser.GameObjects.Graphics;
+  readonly text: Phaser.GameObjects.Text;
+}
+
+/** Top throwers: devil (bad), guest (good), angel (bonus). */
 export class ThrowerCharacters {
   private readonly scene: Phaser.Scene;
   private readonly actors: Record<ThrowerRole, ThrowerActor>;
   private readonly rootY: number;
-  private readonly scoreBadge: Phaser.GameObjects.Container;
-  private readonly scoreIcon: Phaser.GameObjects.Image;
-  private readonly scoreText: Phaser.GameObjects.Text;
-  private readonly nameTag: Phaser.GameObjects.Container;
-  private readonly nameTagBg: Phaser.GameObjects.Graphics;
-  private readonly nameTagText: Phaser.GameObjects.Text;
+  private readonly nameTags: Record<ThrowerRole, RoleNameTag>;
   private unsubscribeGuestName: (() => void) | null = null;
+  private unsubscribeLocale: (() => void) | null = null;
 
   public constructor(scene: Phaser.Scene) {
     this.scene = scene;
     const { width } = scene.scale;
-    this.rootY = 108;
+    this.rootY = ROOT_Y;
     const guestKeys = guestTextures(guestNameStore.getGender());
 
     this.actors = {
@@ -113,50 +120,20 @@ export class ThrowerCharacters {
       ),
     };
 
-    this.scoreIcon = scene.add
-      .image(-18, 0, TextureKey.UiIconCoin)
-      .setDisplaySize(26, 26);
-    this.scoreText = scene.add
-      .text(2, 0, '0', {
-        fontFamily: UiTheme.font,
-        fontSize: '18px',
-        fontStyle: 'bold',
-        color: UiTheme.ink,
-        stroke: '#fff8f0',
-        strokeThickness: 5,
-      })
-      .setOrigin(0, 0.5);
-    this.scoreBadge = scene.add
-      .container(44, this.rootY - SIDE_SIZE * 0.62, [
-        this.scoreIcon,
-        this.scoreText,
-      ])
-      .setDepth(Depth.Hud)
-      .setScrollFactor(0);
+    this.nameTags = {
+      devil: this.makeNameTag(this.actors.devil),
+      guest: this.makeNameTag(this.actors.guest),
+      angel: this.makeNameTag(this.actors.angel),
+    };
 
-    this.nameTagBg = scene.add.graphics();
-    this.nameTagText = scene.add
-      .text(0, 0, '', {
-        fontFamily: UiTheme.font,
-        fontSize: '11px',
-        fontStyle: 'bold',
-        color: '#5c3d2e',
-        align: 'center',
-      })
-      .setOrigin(0.5);
-    this.nameTag = scene.add
-      .container(width / 2, this.rootY - GUEST_SIZE * 0.58, [
-        this.nameTagBg,
-        this.nameTagText,
-      ])
-      .setDepth(Depth.Hud)
-      .setScrollFactor(0);
-
-    this.refreshGuestName();
+    this.refreshAllNameTags();
     this.applyGuestGender(guestNameStore.getGender());
     this.unsubscribeGuestName = guestNameStore.subscribe(() => {
-      this.refreshGuestName();
+      this.refreshNameTag('guest');
       this.applyGuestGender(guestNameStore.getGender());
+    });
+    this.unsubscribeLocale = localeStore.subscribe(() => {
+      this.refreshAllNameTags();
     });
   }
 
@@ -198,42 +175,8 @@ export class ThrowerCharacters {
     this.playThrowVisual(actor, lean, onRelease);
   }
 
-  public setScore(score: number): void {
-    const next = localeStore.formatNumber(score);
-    if (this.scoreText.text === next) {
-      return;
-    }
-    this.scoreText.setText(next);
-    this.scene.tweens.killTweensOf(this.scoreBadge);
-    this.scoreBadge.setScale(1.16);
-    this.scene.tweens.add({
-      targets: this.scoreBadge,
-      scale: 1,
-      duration: 180,
-      ease: 'Back.Out',
-    });
-  }
-
   public refreshGuestName(): void {
-    const name = guestNameStore.getDisplayName();
-    this.nameTagText.setText(name);
-    const padX = 10;
-    const padY = 5;
-    const tw = Math.min(120, Math.max(48, this.nameTagText.width));
-    const th = Math.max(12, this.nameTagText.height);
-    const boxW = tw + padX * 2;
-    const boxH = th + padY * 2;
-    const g = this.nameTagBg;
-    g.clear();
-    g.fillStyle(0x000000, 0.1);
-    g.fillRoundedRect(-boxW / 2 + 1, -boxH / 2 + 2, boxW, boxH, 10);
-    g.fillStyle(0xfff6ea, 0.96);
-    g.lineStyle(2, 0xe8b86d, 1);
-    g.fillRoundedRect(-boxW / 2, -boxH / 2, boxW, boxH, 10);
-    g.strokeRoundedRect(-boxW / 2, -boxH / 2, boxW, boxH, 10);
-    // Tiny heart accent
-    g.fillStyle(0xff8fab, 1);
-    g.fillCircle(-boxW / 2 + 8, 0, 2.4);
+    this.refreshNameTag('guest');
   }
 
   public update(deltaMs: number): void {
@@ -261,27 +204,19 @@ export class ThrowerCharacters {
       }
 
       this.syncSpeech(actor);
+      this.syncNameTag(role);
     });
-
-    const devil = this.actors.devil;
-    this.scoreBadge.setPosition(
-      devil.sprite.x,
-      devil.sprite.y - devil.size * 0.62,
-    );
-
-    const guest = this.actors.guest;
-    this.nameTag.setPosition(
-      guest.sprite.x,
-      guest.sprite.y - guest.size * 0.58,
-    );
   }
 
   public destroy(): void {
     this.unsubscribeGuestName?.();
     this.unsubscribeGuestName = null;
-    this.scene.tweens.killTweensOf(this.scoreBadge);
-    this.scoreBadge.destroy(true);
-    this.nameTag.destroy(true);
+    this.unsubscribeLocale?.();
+    this.unsubscribeLocale = null;
+
+    (Object.keys(this.nameTags) as ThrowerRole[]).forEach((role) => {
+      this.nameTags[role].root.destroy(true);
+    });
 
     (Object.keys(this.actors) as ThrowerRole[]).forEach((role) => {
       const actor = this.actors[role];
@@ -291,6 +226,78 @@ export class ThrowerCharacters {
       actor.sprite.destroy();
       actor.speech.root.destroy(true);
     });
+  }
+
+  private makeNameTag(actor: ThrowerActor): RoleNameTag {
+    const bg = this.scene.add.graphics();
+    const text = this.scene.add
+      .text(0, 0, '', {
+        fontFamily: UiTheme.font,
+        fontSize: '11px',
+        fontStyle: 'bold',
+        color: ROLE_INK[actor.role],
+        align: 'center',
+      })
+      .setOrigin(0.5);
+    const root = this.scene.add
+      .container(
+        actor.sprite.x,
+        actor.sprite.y - actor.size * NAME_TAG_OFFSET,
+        [bg, text],
+      )
+      .setDepth(Depth.Hud)
+      .setScrollFactor(0);
+    return { root, bg, text };
+  }
+
+  private roleLabel(role: ThrowerRole): string {
+    if (role === 'guest') {
+      return guestNameStore.getDisplayName();
+    }
+    if (role === 'angel') {
+      return t('thrower.angel');
+    }
+    return t('thrower.devil');
+  }
+
+  private refreshAllNameTags(): void {
+    (Object.keys(this.nameTags) as ThrowerRole[]).forEach((role) => {
+      this.refreshNameTag(role);
+    });
+  }
+
+  private refreshNameTag(role: ThrowerRole): void {
+    const tag = this.nameTags[role];
+    const label = this.roleLabel(role);
+    tag.text.setText(label).setColor(ROLE_INK[role]);
+
+    const padX = 10;
+    const padY = 5;
+    const maxW = role === 'guest' ? 120 : 100;
+    const tw = Math.min(maxW, Math.max(40, tag.text.width));
+    const th = Math.max(12, tag.text.height);
+    const boxW = tw + padX * 2;
+    const boxH = th + padY * 2;
+    const g = tag.bg;
+    g.clear();
+    g.fillStyle(0x000000, 0.1);
+    g.fillRoundedRect(-boxW / 2 + 1, -boxH / 2 + 2, boxW, boxH, 10);
+    g.fillStyle(ROLE_FILL[role], 0.96);
+    g.lineStyle(2, ROLE_STROKE[role], 1);
+    g.fillRoundedRect(-boxW / 2, -boxH / 2, boxW, boxH, 10);
+    g.strokeRoundedRect(-boxW / 2, -boxH / 2, boxW, boxH, 10);
+    // Role accent dot
+    g.fillStyle(ROLE_STROKE[role], 1);
+    g.fillCircle(-boxW / 2 + 8, 0, 2.4);
+  }
+
+  private syncNameTag(role: ThrowerRole): void {
+    const actor = this.actors[role];
+    const tag = this.nameTags[role];
+    tag.root.setPosition(
+      actor.sprite.x,
+      actor.sprite.y - actor.size * NAME_TAG_OFFSET,
+    );
   }
 
   private maybeSpeak(actor: ThrowerActor): void {
