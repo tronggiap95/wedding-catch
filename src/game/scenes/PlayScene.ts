@@ -185,9 +185,11 @@ export class PlayScene extends Phaser.Scene {
 
     this.state.isPaused = true;
     this.player.setInputEnabled(false);
+    // Show overlay first (final opacity) — then freeze systems.
+    // Pausing tweens before show would leave a fade-in stuck at alpha 0.
+    this.pauseMenu.showPaused();
     this.time.paused = true;
     this.tweens.pauseAll();
-    this.pauseMenu.showPaused();
   }
 
   private resumeGame(): void {

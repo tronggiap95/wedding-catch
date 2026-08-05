@@ -50,6 +50,8 @@ export const zh: Dictionary = {
   'pause.title': '已暂停',
   'pause.hint': '按空格键继续',
   'pause.resume': '继续',
+  'pause.soundOn': '声音开',
+  'pause.soundOff': '已静音',
 
   'hud.score': '分数',
   'hud.combo': '连击 {count}',

@@ -51,6 +51,8 @@ export const en: Dictionary = {
   'pause.title': 'Paused',
   'pause.hint': 'Press Space to resume',
   'pause.resume': 'Resume',
+  'pause.soundOn': 'Sound on',
+  'pause.soundOff': 'Muted',
 
   'hud.score': 'SCORE',
   'hud.combo': 'Combo {count}',

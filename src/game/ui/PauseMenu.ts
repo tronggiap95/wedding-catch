@@ -13,10 +13,12 @@ export interface PauseMenuHandlers {
 }
 
 /**
- * Top-right pause / mute controls + polished pause overlay.
- * Hit targets are Zones so button clicks stay reliable after setDisplaySize.
+ * Top-right pause / mute + polished pause card (content stays inside the frame).
  */
 export class PauseMenu {
+  private static readonly cardW = 300;
+  private static readonly cardH = 300;
+
   private readonly scene: Phaser.Scene;
   private readonly audio: AudioManager;
   private readonly handlers: PauseMenuHandlers;
@@ -24,14 +26,18 @@ export class PauseMenu {
   private readonly muteIcon: Phaser.GameObjects.Image;
   private readonly pauseHit: Phaser.GameObjects.Zone;
   private readonly muteHit: Phaser.GameObjects.Zone;
-  private readonly overlay: Phaser.GameObjects.Container;
+
+  private readonly root: Phaser.GameObjects.Container;
   private readonly dim: Phaser.GameObjects.Rectangle;
-  private readonly panel: Phaser.GameObjects.Image;
+  private readonly card: Phaser.GameObjects.Container;
+  private readonly cardBg: Phaser.GameObjects.Graphics;
   private readonly title: Phaser.GameObjects.Text;
   private readonly hint: Phaser.GameObjects.Text;
   private readonly resumeButton: Phaser.GameObjects.Container;
-  private readonly overlayMuteIcon: Phaser.GameObjects.Image;
-  private readonly overlayMuteHit: Phaser.GameObjects.Zone;
+  private readonly muteChip: Phaser.GameObjects.Container;
+  private readonly muteChipIcon: Phaser.GameObjects.Image;
+  private readonly muteChipLabel: Phaser.GameObjects.Text;
+  private readonly accentHearts: Phaser.GameObjects.Container[] = [];
   private paused = false;
 
   public constructor(
@@ -94,20 +100,20 @@ export class PauseMenu {
       this.handlers.onPauseRequest();
     });
 
+    // —— Overlay: dim (fullscreen) + card (fixed size, all chrome inside) ——
     this.dim = scene.add
-      .rectangle(0, 0, width, height, 0x5c3d2e, 0.55)
+      .rectangle(0, 0, width, height, 0x2b2118, 0)
       .setOrigin(0.5)
+      .setInteractive()
       .setData('isHud', true);
 
-    this.panel = scene.add
-      .image(0, -10, TextureKey.UiPanel)
-      .setDisplaySize(Math.min(340, width * 0.86), 280)
-      .setData('isHud', true);
+    this.cardBg = scene.add.graphics();
+    this.paintCard(this.cardBg, PauseMenu.cardW, PauseMenu.cardH);
 
     this.title = scene.add
-      .text(0, -88, t('pause.title'), {
+      .text(0, -PauseMenu.cardH / 2 + 48, t('pause.title'), {
         fontFamily: UiTheme.font,
-        fontSize: '34px',
+        fontSize: '28px',
         fontStyle: 'bold',
         color: UiTheme.ink,
         stroke: '#fff8f0',
@@ -116,54 +122,88 @@ export class PauseMenu {
       .setOrigin(0.5);
 
     this.hint = scene.add
-      .text(0, -48, t('pause.hint'), {
+      .text(0, -PauseMenu.cardH / 2 + 84, t('pause.hint'), {
         fontFamily: UiTheme.font,
-        fontSize: '14px',
+        fontSize: '13px',
         color: UiTheme.inkSoft,
+        align: 'center',
+        wordWrap: { width: PauseMenu.cardW - 48 },
       })
       .setOrigin(0.5);
+
+    if (scene.textures.exists(TextureKey.UiHeartFull)) {
+      for (const ox of [-78, 78]) {
+        const heart = scene.add
+          .image(0, 0, TextureKey.UiHeartFull)
+          .setDisplaySize(18, 18)
+          .setAlpha(0.85);
+        // Wrapper scale keeps display size correct (never setScale on the image).
+        this.accentHearts.push(
+          scene.add.container(ox, -PauseMenu.cardH / 2 + 48, [heart]),
+        );
+      }
+    }
 
     this.resumeButton = createPrimaryButton(
       scene,
       0,
-      20,
+      18,
       t('pause.resume'),
-      210,
-      62,
+      200,
+      56,
     );
+
     this.resumeButton.on('pointerup', () => {
       this.audio.unlock();
       this.audio.playSfx(Sound.UiClick);
       this.handlers.onResumeRequest();
     });
 
-    this.overlayMuteIcon = scene.add
-      .image(0, 95, TextureKey.UiBtnSoundOn)
-      .setDisplaySize(52, 52)
-      .setData('isHud', true);
+    this.muteChipIcon = scene.add
+      .image(-36, 0, TextureKey.UiBtnSoundOn)
+      .setDisplaySize(30, 30);
+    this.muteChipLabel = scene.add
+      .text(10, 0, t('pause.soundOn'), {
+        fontFamily: UiTheme.font,
+        fontSize: '13px',
+        fontStyle: 'bold',
+        color: UiTheme.ink,
+      })
+      .setOrigin(0, 0.5);
 
-    this.overlayMuteHit = scene.add
-      .zone(0, 95, 60, 60)
+    const muteChipBg = scene.add.graphics();
+    this.paintMuteChip(muteChipBg, false);
+    const muteHit = scene.add
+      .zone(0, 0, 160, 44)
       .setInteractive({ useHandCursor: true })
       .setData('isHud', true);
-    this.overlayMuteHit.on('pointerup', () => {
+    muteHit.on('pointerup', () => {
       this.audio.unlock();
       this.audio.toggleMute();
       this.audio.playSfx(Sound.UiToggle);
       this.refreshMute();
     });
 
-    this.overlay = scene.add
-      .container(width / 2, height / 2, [
-        this.dim,
-        this.panel,
-        this.title,
-        this.hint,
-        this.resumeButton,
-        this.overlayMuteIcon,
-        this.overlayMuteHit,
-      ])
+    this.muteChip = scene.add.container(0, PauseMenu.cardH / 2 - 52, [
+      muteChipBg,
+      this.muteChipIcon,
+      this.muteChipLabel,
+      muteHit,
+    ]);
+
+    this.card = scene.add.container(0, 0, [
+      this.cardBg,
+      ...this.accentHearts,
+      this.title,
+      this.hint,
+      this.resumeButton,
+      this.muteChip,
+    ]);
+
+    this.root = scene.add
+      .container(width / 2, height / 2, [this.dim, this.card])
       .setDepth(Depth.Popup)
+      .setScrollFactor(0)
       .setVisible(false)
       .setActive(false);
 
@@ -181,9 +221,14 @@ export class PauseMenu {
     this.muteIcon.setPosition(muteX, y);
     this.pauseHit.setPosition(pauseX, y);
     this.muteHit.setPosition(muteX, y);
+
+    if (this.paused) {
+      const { height } = this.scene.scale;
+      this.root.setPosition(width / 2, height / 2);
+      this.dim.setSize(width, height);
+    }
   }
 
-  /** Right edge reserved for mute+pause (so HUD can avoid overlap). */
   public get controlsLeft(): number {
     const size = UiTheme.iconBtn;
     const pauseX = this.scene.scale.width - 14 - size / 2;
@@ -198,27 +243,21 @@ export class PauseMenu {
       .setDisplaySize(UiTheme.iconBtn, UiTheme.iconBtn);
 
     const { width, height } = this.scene.scale;
-    this.overlay
+    this.root
       .setPosition(width / 2, height / 2)
       .setVisible(true)
-      .setActive(true);
+      .setActive(true)
+      .setDepth(Depth.Popup);
     this.dim.setSize(width, height);
-    this.panel.setDisplaySize(Math.min(340, width * 0.86), 280);
     this.setOverlayInputEnabled(true);
 
-    this.scene.tweens.add({
-      targets: [
-        this.panel,
-        this.title,
-        this.hint,
-        this.resumeButton,
-        this.overlayMuteIcon,
-      ],
-      scale: { from: 0.86, to: 1 },
-      alpha: { from: 0, to: 1 },
-      duration: 220,
-      ease: 'Back.Out',
-    });
+    // PlayScene freezes the tween manager right after this call
+    // (tweens.pauseAll). Entry tweens would stick at alpha 0 —
+    // always snap the card to a fully visible final state first.
+    this.scene.tweens.killTweensOf(this.dim);
+    this.scene.tweens.killTweensOf(this.card);
+    this.dim.setAlpha(0.55);
+    this.card.setScale(1).setAlpha(1).setY(0);
 
     this.refreshMute();
   }
@@ -228,8 +267,16 @@ export class PauseMenu {
     this.pauseIcon
       .setTexture(TextureKey.UiBtnPause)
       .setDisplaySize(UiTheme.iconBtn, UiTheme.iconBtn);
+
+    this.scene.tweens.killTweensOf(this.dim);
+    this.scene.tweens.killTweensOf(this.card);
+    this.accentHearts.forEach((h) => this.scene.tweens.killTweensOf(h));
+
+    // Same freeze issue: do not rely on tweens for dismiss.
+    this.dim.setAlpha(0);
+    this.card.setScale(1).setAlpha(1).setY(0);
     this.setOverlayInputEnabled(false);
-    this.overlay.setVisible(false).setActive(false);
+    this.root.setVisible(false).setActive(false);
   }
 
   public isShowing(): boolean {
@@ -237,11 +284,58 @@ export class PauseMenu {
   }
 
   public destroy(): void {
+    this.scene.tweens.killTweensOf(this.dim);
+    this.scene.tweens.killTweensOf(this.card);
+    this.accentHearts.forEach((h) => this.scene.tweens.killTweensOf(h));
     this.pauseIcon.destroy();
     this.muteIcon.destroy();
     this.pauseHit.destroy();
     this.muteHit.destroy();
-    this.overlay.destroy(true);
+    this.root.destroy(true);
+  }
+
+  private paintCard(
+    g: Phaser.GameObjects.Graphics,
+    w: number,
+    h: number,
+  ): void {
+    g.clear();
+    const x = -w / 2;
+    const y = -h / 2;
+    const r = 28;
+
+    // Soft outer shadow
+    g.fillStyle(0x000000, 0.14);
+    g.fillRoundedRect(x + 3, y + 6, w, h, r);
+
+    // Outer rose ring
+    g.fillStyle(0xe8b4a8, 1);
+    g.fillRoundedRect(x, y, w, h, r);
+
+    // Cream face
+    g.fillStyle(0xfff8f0, 1);
+    g.fillRoundedRect(x + 5, y + 5, w - 10, h - 10, r - 4);
+
+    // Top blush band
+    g.fillStyle(0xffe8dc, 0.9);
+    g.fillRoundedRect(x + 14, y + 14, w - 28, 56, 16);
+
+    // Gold hairline
+    g.lineStyle(2, 0xd4a017, 0.55);
+    g.strokeRoundedRect(x + 10, y + 10, w - 20, h - 20, r - 6);
+  }
+
+  private paintMuteChip(
+    g: Phaser.GameObjects.Graphics,
+    muted: boolean,
+  ): void {
+    g.clear();
+    const w = 156;
+    const h = 42;
+    g.fillStyle(muted ? 0xf0d8d0 : 0xfff0e0, 1);
+    g.lineStyle(2, muted ? 0xc48070 : 0xe8b86d, 1);
+    g.fillRoundedRect(-w / 2, -h / 2, w, h, 14);
+    g.strokeRoundedRect(-w / 2, -h / 2, w, h, 14);
   }
 
   private setOverlayInputEnabled(enabled: boolean): void {
@@ -250,19 +344,33 @@ export class PauseMenu {
     } else {
       this.dim.disableInteractive();
     }
-    this.overlayMuteHit.input && (this.overlayMuteHit.input.enabled = enabled);
     const resumeHit = this.resumeButton.getData('hitZone') as
       | Phaser.GameObjects.Zone
       | undefined;
     if (resumeHit?.input) {
       resumeHit.input.enabled = enabled;
     }
+    this.muteChip.list.forEach((child) => {
+      if (child instanceof Phaser.GameObjects.Zone && child.input) {
+        child.input.enabled = enabled;
+      }
+    });
   }
 
   private refreshMute(): void {
     const muted = this.audio.isMuted();
     const tex = muted ? TextureKey.UiBtnSoundOff : TextureKey.UiBtnSoundOn;
-    this.muteIcon.setTexture(tex).setDisplaySize(UiTheme.iconBtn, UiTheme.iconBtn);
-    this.overlayMuteIcon.setTexture(tex).setDisplaySize(52, 52);
+    this.muteIcon
+      .setTexture(tex)
+      .setDisplaySize(UiTheme.iconBtn, UiTheme.iconBtn);
+    this.muteChipIcon.setTexture(tex).setDisplaySize(30, 30);
+    this.muteChipLabel.setText(
+      muted ? t('pause.soundOff') : t('pause.soundOn'),
+    );
+
+    const bg = this.muteChip.list[0];
+    if (bg instanceof Phaser.GameObjects.Graphics) {
+      this.paintMuteChip(bg, muted);
+    }
   }
 }

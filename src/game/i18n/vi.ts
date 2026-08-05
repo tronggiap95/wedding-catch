@@ -51,6 +51,8 @@ export const vi: Dictionary = {
   'pause.title': 'Tạm dừng',
   'pause.hint': 'Nhấn Space để tiếp tục',
   'pause.resume': 'Tiếp tục',
+  'pause.soundOn': 'Âm thanh',
+  'pause.soundOff': 'Đã tắt tiếng',
 
   'hud.score': 'ĐIỂM',
   'hud.combo': 'Combo {count}',

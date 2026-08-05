@@ -4,7 +4,7 @@ import { Depth } from '../constants/Depth';
 import { RegistryKey } from '../constants/RegistryKey';
 import { Sound } from '../constants/Sound';
 import { TextureKey } from '../constants/TextureKey';
-import { LOCALE_LABELS, LOCALES, localeStore, t } from '../i18n';
+import { LOCALES, localeStore, t } from '../i18n';
 import type { Locale } from '../i18n/types';
 import type { AudioManager } from '../managers/AudioManager';
 import type { ResponsiveManager } from '../managers/ResponsiveManager';
@@ -92,7 +92,6 @@ export class MenuScene extends Phaser.Scene {
     this.buildBackdrop(width, height);
     this.buildDecor(width, height);
     this.buildHero(width, height);
-    this.buildLanguagePicker(audio, width, height);
     this.buildButtons(audio);
     this.buildChrome(audio, width);
 
@@ -243,7 +242,7 @@ export class MenuScene extends Phaser.Scene {
       .setAlpha(0);
 
     this.coupleNames = this.add
-      .text(width / 2, height * 0.23, t('menu.coupleNames'), {
+      .text(width / 2, height * 0.225, t('menu.coupleNames'), {
         fontFamily: UiTheme.font,
         fontSize: '22px',
         fontStyle: 'bold',
@@ -257,20 +256,20 @@ export class MenuScene extends Phaser.Scene {
       .setAlpha(0);
 
     this.welcome = this.add
-      .text(width / 2, height * 0.29, this.welcomeMessage(), {
+      .text(width / 2, height * 0.275, this.welcomeMessage(), {
         fontFamily: UiTheme.font,
         fontSize: '15px',
         color: UiTheme.inkSoft,
         align: 'center',
         lineSpacing: 5,
-        wordWrap: { width: width * 0.8 },
+        wordWrap: { width: width * 0.82 },
       })
       .setOrigin(0.5)
       .setDepth(Depth.Hud)
       .setAlpha(0);
 
     this.editNameBtn = this.add
-      .text(width / 2, height * 0.325, t('menu.editName'), {
+      .text(width / 2, height * 0.318, t('menu.editName'), {
         fontFamily: UiTheme.font,
         fontSize: '13px',
         fontStyle: 'bold',
@@ -303,13 +302,10 @@ export class MenuScene extends Phaser.Scene {
     this.welcome?.setText(this.welcomeMessage());
   }
 
-  private buildLanguagePicker(
-    audio: AudioManager,
-    width: number,
-    height: number,
-  ): void {
-    const chipSize = 38;
-    const gap = 14;
+  private buildLanguagePicker(audio: AudioManager): Phaser.GameObjects.Container {
+    // Compact flag chips for top header — icons only, no captions.
+    const chipSize = 32;
+    const gap = 10;
     const totalW = LOCALES.length * chipSize + (LOCALES.length - 1) * gap;
     const startX = -totalW / 2 + chipSize / 2;
     const active = localeStore.getLocale();
@@ -318,14 +314,18 @@ export class MenuScene extends Phaser.Scene {
     LOCALES.forEach((locale, index) => {
       const x = startX + index * (chipSize + gap);
       chips.push(
-        this.createLanguageChip(x, 0, locale, chipSize, locale === active, audio),
+        this.createLanguageChip(
+          x,
+          0,
+          locale,
+          chipSize,
+          locale === active,
+          audio,
+        ),
       );
     });
 
-    this.languageRoot = this.add
-      .container(width / 2, height * 0.355, chips)
-      .setDepth(Depth.Hud)
-      .setAlpha(0);
+    return this.add.container(0, 0, chips).setDepth(Depth.Hud).setAlpha(0);
   }
 
   private createLanguageChip(
@@ -337,28 +337,25 @@ export class MenuScene extends Phaser.Scene {
     audio: AudioManager,
   ): Phaser.GameObjects.Container {
     const ring = this.add
-      .circle(0, 0, size / 2 + 3, selected ? 0xd4a017 : 0xfff8f0, selected ? 1 : 0.85)
+      .circle(
+        0,
+        0,
+        size / 2 + 3,
+        selected ? 0xd4a017 : 0xfff8f0,
+        selected ? 1 : 0.92,
+      )
       .setStrokeStyle(2, selected ? 0x8b3a3a : 0xd4a017);
 
     const icon = this.add
       .image(0, 0, LANG_TEXTURE[locale])
       .setDisplaySize(size, size);
 
-    const caption = this.add
-      .text(0, size / 2 + 10, LOCALE_LABELS[locale], {
-        fontFamily: UiTheme.font,
-        fontSize: '11px',
-        fontStyle: 'bold',
-        color: selected ? UiTheme.ink : UiTheme.inkSoft,
-      })
-      .setOrigin(0.5, 0);
-
     const hit = this.add
-      .zone(0, 4, size + 8, size + 24)
+      .zone(0, 0, size + 10, size + 10)
       .setInteractive({ useHandCursor: true })
       .setData('isHud', true);
 
-    const root = this.add.container(x, y, [ring, icon, caption, hit]);
+    const root = this.add.container(x, y, [ring, icon, hit]);
 
     hit.on('pointerup', () => {
       audio.unlock();
@@ -444,26 +441,13 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private buildChrome(audio: AudioManager, width: number): void {
-    const muteY = UiTheme.topPad + UiTheme.iconBtn / 2;
-    const muteX = width - 16 - UiTheme.iconBtn / 2;
-
-    this.muteButton = createIconButton(
-      this,
-      muteX,
-      muteY,
-      audio.isMuted() ? TextureKey.UiBtnSoundOff : TextureKey.UiBtnSoundOn,
-    );
-    this.muteButton.on('pointerup', () => {
-      audio.unlock();
-      audio.toggleMute();
-      audio.playSfx(Sound.UiToggle);
-      this.refreshMute(audio);
-    });
+    const headerY = UiTheme.topPad + UiTheme.iconBtn / 2;
+    const edge = 16 + UiTheme.iconBtn / 2;
 
     this.rankIcon = createIconButton(
       this,
-      16 + UiTheme.iconBtn / 2,
-      muteY,
+      edge,
+      headerY,
       TextureKey.UiBtnRank,
     );
     this.rankIcon.on('pointerup', () => {
@@ -473,6 +457,23 @@ export class MenuScene extends Phaser.Scene {
       audio.unlock();
       audio.playSfx(Sound.UiClick);
       this.showOverlay('rank', audio);
+    });
+
+    // Languages live in the top header between rank and mute — never mid-screen.
+    this.languageRoot = this.buildLanguagePicker(audio);
+    this.languageRoot.setPosition(width / 2, headerY);
+
+    this.muteButton = createIconButton(
+      this,
+      width - edge,
+      headerY,
+      audio.isMuted() ? TextureKey.UiBtnSoundOff : TextureKey.UiBtnSoundOn,
+    );
+    this.muteButton.on('pointerup', () => {
+      audio.unlock();
+      audio.toggleMute();
+      audio.playSfx(Sound.UiToggle);
+      this.refreshMute(audio);
     });
   }
 
@@ -490,20 +491,26 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private layout(w: number, h: number): void {
+    const headerY = UiTheme.topPad + UiTheme.iconBtn / 2;
+    const edge = 16 + UiTheme.iconBtn / 2;
+
     this.banner?.setPosition(w / 2, h * 0.15);
     this.fitBanner(w, h);
     this.brandTitle?.setPosition(w / 2, h * 0.145);
-    this.coupleNames?.setPosition(w / 2, h * 0.23);
-    this.welcome?.setPosition(w / 2, h * 0.285);
-    this.editNameBtn?.setPosition(w / 2, h * 0.322);
-    this.languageRoot?.setPosition(w / 2, h * 0.365);
+    this.coupleNames?.setPosition(w / 2, h * 0.225);
+    this.welcome?.setPosition(w / 2, h * 0.275);
+    this.editNameBtn?.setPosition(w / 2, h * 0.318);
+
+    this.rankIcon?.setPosition(edge, headerY);
+    this.languageRoot?.setPosition(w / 2, headerY);
+    this.muteButton?.setPosition(w - edge, headerY);
 
     if (this.couple !== null) {
-      const coupleH = Math.min(210, h * 0.28);
+      const coupleH = Math.min(220, h * 0.3);
       const frame = this.couple.frame;
       const aspect = frame.width / frame.height;
       this.couple
-        .setPosition(w / 2, h * 0.5)
+        .setPosition(w / 2, h * 0.49)
         .setDisplaySize(coupleH * aspect, coupleH);
     }
 
@@ -511,14 +518,6 @@ export class MenuScene extends Phaser.Scene {
     this.guideButton?.setPosition(w / 2, h * 0.755);
     this.rankButton?.setPosition(w / 2, h * 0.83);
     this.settingsButton?.setPosition(w / 2, h * 0.905);
-    this.muteButton?.setPosition(
-      w - 16 - UiTheme.iconBtn / 2,
-      UiTheme.topPad + UiTheme.iconBtn / 2,
-    );
-    this.rankIcon?.setPosition(
-      16 + UiTheme.iconBtn / 2,
-      UiTheme.topPad + UiTheme.iconBtn / 2,
-    );
     this.overlay?.setPosition(w / 2, h / 2);
     if (this.overlayDim !== null) {
       this.overlayDim.setSize(w, h);
@@ -552,31 +551,33 @@ export class MenuScene extends Phaser.Scene {
     fadeUp(this.coupleNames, 140, 14);
     fadeUp(this.welcome, 180, 12);
     fadeUp(this.editNameBtn, 200, 10);
-    fadeUp(this.languageRoot, 220, 10);
-    fadeUp(this.couple, 200, 28);
+    fadeUp(this.couple, 220, 28);
     fadeUp(this.playButton, 280, 28);
     fadeUp(this.guideButton, 330, 20);
     fadeUp(this.rankButton, 370, 18);
     fadeUp(this.settingsButton, 410, 16);
 
-    if (this.muteButton !== null) {
-      this.muteButton.setAlpha(0);
+    const fadeHeader = (
+      target:
+        | Phaser.GameObjects.Image
+        | Phaser.GameObjects.Container
+        | null,
+      delay: number,
+    ): void => {
+      if (target === null) {
+        return;
+      }
+      target.setAlpha(0);
       this.tweens.add({
-        targets: this.muteButton,
+        targets: target,
         alpha: 1,
         duration: 300,
-        delay: 200,
+        delay,
       });
-    }
-    if (this.rankIcon !== null) {
-      this.rankIcon.setAlpha(0);
-      this.tweens.add({
-        targets: this.rankIcon,
-        alpha: 1,
-        duration: 300,
-        delay: 200,
-      });
-    }
+    };
+    fadeHeader(this.rankIcon, 160);
+    fadeHeader(this.languageRoot, 180);
+    fadeHeader(this.muteButton, 200);
   }
 
   private startIdleMotion(): void {
